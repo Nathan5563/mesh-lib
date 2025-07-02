@@ -32,13 +32,5 @@ void Mesh::fromObj(const std::string &path)
 
 void Mesh::toObj() const
 {
-    std::cout << "# Vertices:" << std::endl;
-    for (const auto& vertex : this->vertices) {
-        std::cout << "v " << vertex.x << " " << vertex.y << " " << vertex.z << std::endl;
-    }
-
-    std::cout << "# Faces:" << std::endl;
-    for (const auto& face : this->faces) {
-        std::cout << "f " << face.a << " " << face.b << " " << face.c << std::endl;
-    }
+    exportMeshToObj(*this);
 }

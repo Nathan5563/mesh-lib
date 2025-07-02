@@ -48,9 +48,17 @@ void importMeshFromObj(Mesh &mesh, std::ifstream &obj_file)
     }
 }
 
-void exportMeshToObj(const Mesh &mesh, const std::ofstream &obj_file)
+void exportMeshToObj(const Mesh &mesh)
 {
-    // TODO
+    std::cout << "# Vertices:" << std::endl;
+    for (const auto& vertex : mesh.vertices) {
+        std::cout << "v " << vertex.x << " " << vertex.y << " " << vertex.z << std::endl;
+    }
+
+    std::cout << "# Faces:" << std::endl;
+    for (const auto& face : mesh.faces) {
+        std::cout << "f " << face.a << " " << face.b << " " << face.c << std::endl;
+    }
 }
 
 // ---------------------------------------------------------------------------

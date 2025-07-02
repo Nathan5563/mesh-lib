@@ -21,7 +21,7 @@
 // WARNING: this parser assumes the given .obj file is syntactically correct.
 void importMeshFromObj(Mesh &mesh, std::ifstream &obj_file);
 
-// Export data from the given mesh object into the given .obj file
-void exportMeshToObj(const Mesh &mesh, std::ofstream &obj_file);
+// Export data from the given mesh object in .obj format to stdout
+void exportMeshToObj(const Mesh &mesh);
 
 #endif // __OBJ_PARSER_HPP__
