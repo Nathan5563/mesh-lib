@@ -30,9 +30,9 @@ Optionally, uncomment line 20 in `tests/harness.cpp` to output the parsed obj fi
 ### Mesh Data Structure
 The mesh is represented as a struct containing the following:
 - `std::vector<Vertex> vertices`
-    - `Vertex` is a struct composed of three `float`s to represent x, y, and z coordinates
+    - `Vertex` is a struct composed of three `float`s to represent x, y, and z coordinates.
 - `std::vector<Face> faces`
-    - `Face` is a struct composed of three `size_t`s to index into three vertices in the `vertices` vector
+    - `Face` is a struct composed of three `size_t`s to index into three vertices in the `vertices` vector.
 
 Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file.
 
