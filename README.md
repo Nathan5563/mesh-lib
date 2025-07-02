@@ -34,7 +34,7 @@ The mesh is represented as a struct containing the following:
 - `std::vector<Face> faces`
     - `Face` is a struct composed of three `size_t`s to index into three vertices in the `vertices` vector.
 
-Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file.
+Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate.
 
 ### Performance Analysis
 Initial analysis was done using the Linux `time` tool and the following obj file:
