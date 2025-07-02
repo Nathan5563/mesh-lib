@@ -45,13 +45,14 @@ void importMeshFromObj(Mesh &mesh, std::ifstream &obj_file)
 
 void exportMeshToObj(const Mesh &mesh, const std::ofstream &obj_file)
 {
+    // TODO
 }
 
 // ---------------------------------------------------------------------------
 //   Helpers
 // ---------------------------------------------------------------------------
 
-static void parseVertex(Mesh &mesh, std::string line)
+static void parseVertex(Mesh &mesh, std::string &line)
 {
     size_t line_length = line.size();
 
@@ -63,23 +64,12 @@ static void parseVertex(Mesh &mesh, std::string line)
         {
             if (!buf.empty())
             {
-                if (std::isnan(v.x))
-                {
-                    v.x = std::stof(buf);
-                }
-                else if (std::isnan(v.y))
-                {
-                    v.y = std::stof(buf);
-                }
-                else if (std::isnan(v.z))
-                {
-                    v.z = std::stof(buf);
-                }
-                else
+                bool done = updateVertex(v, buf);
+                buf.clear();
+                if (done)
                 {
                     break;
                 }
-                buf.clear();
             }
         }
         else
@@ -87,15 +77,99 @@ static void parseVertex(Mesh &mesh, std::string line)
             buf += line[idx];
         }
     }
-    if (!buf.empty() && std::isnan(v.z))
+    if (!buf.empty())
     {
-        v.z = std::stof(buf);
+        updateVertex(v, buf);
     }
 
     mesh.vertices.push_back(v);
 }
 
-// TODO
-static void parseFace(Mesh &mesh, std::string line)
+static bool updateVertex(Vertex &v, std::string &buf)
 {
+    bool res = false;
+    float coord = std::stof(buf);
+    if (std::isnan(v.x))
+    {
+        v.x = coord;
+    }
+    else if (std::isnan(v.y))
+    {
+        v.y = coord;
+    }
+    else if (std::isnan(v.z))
+    {
+        v.z = coord;
+        res = true;
+    }
+
+    return res;
+}
+
+static void parseFace(Mesh &mesh, std::string &line)
+{
+    size_t line_length = line.size();
+
+    std::string buf;
+    Face f = {0, 0, 0};
+    for (size_t idx = 2; idx < line_length; ++idx)
+    {
+        if (std::isspace(static_cast<unsigned char>(line[idx])))
+        {
+            if (!buf.empty())
+            {
+                bool done = updateFace(mesh, f, buf);
+                buf.clear();
+                if (done)
+                {
+                    break;
+                }
+            }
+        }
+        else if (line[idx] == '/')
+        {
+            while (idx < line_length &&
+                   !std::isspace(static_cast<unsigned char>(line[idx])))
+            {
+                ++idx;
+            }
+        }
+        else
+        {
+            buf += line[idx];
+        }
+    }
+    if (!buf.empty())
+    {
+        updateFace(mesh, f, buf);
+    }
+
+    mesh.faces.push_back(f);
+}
+
+// WARNING: face indices use int width (32 bits)
+static bool updateFace(Mesh &mesh, Face &f, std::string &buf)
+{
+    int index = std::stoi(buf);
+    if (index < 0)
+    {
+        index = static_cast<int>(mesh.vertices.size()) + index + 1;
+    }
+
+    bool res = false;
+    if (f.a == 0)
+    {
+        f.a = static_cast<size_t>(index);
+    }
+    else if (f.b == 0)
+    {
+        f.b = static_cast<size_t>(index);
+    }
+    else if (f.c == 0)
+    {
+        f.c = static_cast<size_t>(index);
+        res = true;
+    }
+
+    return res;
 }

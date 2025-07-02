@@ -14,9 +14,9 @@
 //   - A face starting with 'f'
 // Leading whitespace is not allowed.
 // Only position information is taken from the faces, i.e.,
-//   f 0/2/1 2/0/0 3/1/0
+//   f 5/2/1 -2/0/0 3/1/0
 // will only use the vertex indices
-//   f 0 2 3
+//   f 5 -2 3
 //
 // WARNING: this parser assumes the given .obj file is syntactically correct.
 void importMeshFromObj(Mesh &mesh, std::ifstream &obj_file);
