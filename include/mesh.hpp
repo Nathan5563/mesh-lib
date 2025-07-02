@@ -34,8 +34,8 @@ struct Mesh
     // Replace the calling Mesh object's data with data from a .obj file
     void fromObj(const std::string &path);
 
-    // Export the calling Mesh object in .obj format
-    void toObj(const std::string &path) const;
+    // Export the calling Mesh object in .obj format to stdout
+    void toObj() const;
 };
 
 #endif // __MESH_HPP__

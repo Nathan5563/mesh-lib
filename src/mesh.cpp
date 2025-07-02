@@ -30,14 +30,15 @@ void Mesh::fromObj(const std::string &path)
     importMeshFromObj(*this, obj_file);
 }
 
-void Mesh::toObj(const std::string &path) const
+void Mesh::toObj() const
 {
-    std::ofstream obj_file(path);
-    if (!obj_file.is_open())
-    {
-        std::cerr << "Failed to open file" << std::endl;
-        return;
+    std::cout << "# Vertices:" << std::endl;
+    for (const auto& vertex : this->vertices) {
+        std::cout << "v " << vertex.x << " " << vertex.y << " " << vertex.z << std::endl;
     }
 
-    exportMeshToObj(*this, obj_file);
+    std::cout << "# Faces:" << std::endl;
+    for (const auto& face : this->faces) {
+        std::cout << "f " << face.a << " " << face.b << " " << face.c << std::endl;
+    }
 }

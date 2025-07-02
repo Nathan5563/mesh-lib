@@ -6,6 +6,11 @@
 #include "obj-parser.hpp"
 #include "../include/mesh.hpp"
 
+static void parseVertex(Mesh &mesh, std::string &line);
+static bool updateVertex(Vertex &v, std::string &buf);
+static void parseFace(Mesh &mesh, std::string &line);
+static bool updateFace(Mesh &mesh, Face &f, std::string &buf);
+
 // ---------------------------------------------------------------------------
 //   Core API
 // ---------------------------------------------------------------------------
