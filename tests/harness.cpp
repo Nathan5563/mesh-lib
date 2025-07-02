@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 
     mesh.fromObj(path);
     
-    mesh.toObj();
+    // mesh.toObj();
 
     return 0;
 }

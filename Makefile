@@ -11,7 +11,7 @@ OBJS := $(patsubst src/%.cpp,obj/%.o,$(SRCS))
 TEST_SRC := tests/harness.cpp
 TEST_EXE := bin/harness
 
-.PHONY: all clean run
+.PHONY: all clean
 
 all: $(TEST_EXE)
 
@@ -24,6 +24,9 @@ obj/%.o: src/%.cpp
 $(TEST_EXE): $(OBJS) $(TEST_SRC)
 	mkdir -p bin
 	$(CXX) $(CXXFLAGS) $^ -o $@
+
+tinyobjloader-harness: tests/tiny_obj_loader.h tests/tinyobjloader-harness.cpp
+	$(CXX) $(CXXFLAGS) $^ -o bin/$@
 
 clean:
 	rm -rf obj/* bin/*

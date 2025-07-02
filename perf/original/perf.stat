@@ -1,0 +1,19 @@
+event syntax error: 'cpu_atom/TOPDOWN_BE_BOUND.ALL_P,metric-id=cpu_atom!3TOPDOWN_BE_BOUND.ALL_P!3/,cpu_atom/TOPDOWN_R..'
+                     \___ Bad event or PMU
+
+Unable to find PMU or event on a PMU of 'cpu_atom'
+
+ Performance counter stats for '../bin/harness ../data/input/s-dragon.obj':
+
+            375.77 msec task-clock:u                     #    1.028 CPUs utilized             
+                 0      context-switches:u               #    0.000 /sec                      
+                 0      cpu-migrations:u                 #    0.000 /sec                      
+             14164      page-faults:u                    #   37.693 K/sec                     
+   <not supported>      cycles:u                                                              
+
+       0.365492333 seconds time elapsed
+
+       0.331248000 seconds user
+       0.044984000 seconds sys
+
+
