@@ -54,24 +54,26 @@ Optimizations were chosen based on performance analysis from the following tools
 `std::from_chars` is much faster than `stoi`/`stof`. Averaged over 8 runs,
 | Metric | `std::stoi` and `std::stof` | `std::from_chars` |
 | ------ | --------------------------- | ----------------- |
-| real   | **0.416**                   | **0.338**         |
-| user   | **0.366**                   | **0.283**         |
-| sys    | **0.055**                   | **0.051**         |
+| real   | **0.416s**                   | **0.338s**         |
+| user   | **0.366s**                   | **0.283s**         |
+| sys    | **0.055s**                   | **0.051s**         |
 
 #### Optimization 2:
 `mmap` with `std::string_view` is faster than `ifstream` and `std::getline` (especially for large files). Averaged over 8 runs,
 | Metric | `ifstream` and `std::getline` | `mmap` and `std::string_view` |
 | ------ | ----------------------------- | ----------------------------- |
-| real   | **0.338**                     | **0.224**                     |
-| user   | **0.283**                     | **0.202**                     |
-| sys    | **0.051**                     | **0.026**                     |
+| real   | **0.338s**                     | **0.264s**                     |
+| user   | **0.283s**                     | **0.242s**                     |
+| sys    | **0.051s**                     | **0.026s**                     |
 
 ### Comparison with tinyobjloader
 Using the final version of the library thus far (after optimizations 1 and 2), averaged over 8 runs,
 | Metric | `mesh-lib`                    | `tinyobjloader`               |
 | ------ | ----------------------------- | ----------------------------- |
-| real   | **0.224**                     | **0.309**                     |
-| user   | **0.202**                     | **0.213**                     |
-| sys    | **0.026**                     | **0.099**                     |
+| real   | **0.264s**                     | **0.438s**                     |
+| user   | **0.242s**                     | **0.288s**                     |
+| sys    | **0.026s**                     | **0.163s**                     |
 
 `tinyobjloader` is slightly slower here due to more page faults, according to `perf stat`. `mesh-lib` records **14,711** page faults, whereas `tinyobjloader` records **50,961**. `mesh-lib` also has less functionality, but I'm not sure yet how much, if at all, the extra functionality plays a part.
+
+TODO: Compare both libraries with a much larger input (at least 1 GB)
