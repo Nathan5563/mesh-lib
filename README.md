@@ -76,4 +76,14 @@ Using the final version of the library thus far (after optimizations 1 and 2), a
 
 `tinyobjloader` is slightly slower here due to more page faults, according to `perf stat`. `mesh-lib` records **14,711** page faults, whereas `tinyobjloader` records **50,961**. `mesh-lib` also has less functionality, but I'm not sure yet how much, if at all, the extra functionality plays a part.
 
-TODO: Compare both libraries with a much larger input (at least 1 GB)
+The difference becomes bigger with the following 2.5 GB obj file:
+
+<img src="https://github.com/user-attachments/assets/2d5aaad9-80eb-4e7b-bf6d-ca91e7e2e68b" alt="Blender 3.0 splash screen" width="500px" />
+
+| Metric | `mesh-lib`                    | `tinyobjloader`               |
+| ------ | ----------------------------- | ----------------------------- |
+| real   | **11.789s**                     | **19.312s**                     |
+| user   | **10.486s**                     | **15.987s**                     |
+| sys    | **1.166s**                     | **2.747s**                     |
+
+Note that the values for `tinyobjloader` match the values measured in this [blog post](https://aras-p.info/blog/2022/05/14/comparing-obj-parse-libraries/).
