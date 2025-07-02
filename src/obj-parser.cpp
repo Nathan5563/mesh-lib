@@ -81,7 +81,7 @@ void exportMeshToObj(const Mesh &mesh)
     std::cout << "# Faces:" << std::endl;
     for (const auto &face : mesh.faces)
     {
-        std::cout << "f " << face.a << " " << face.b << " " << face.c << std::endl;
+        std::cout << "f " << face.a + 1 << " " << face.b + 1 << " " << face.c + 1 << std::endl;
     }
 }
 
