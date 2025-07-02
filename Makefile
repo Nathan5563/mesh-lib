@@ -25,8 +25,5 @@ $(TEST_EXE): $(OBJS) $(TEST_SRC)
 	mkdir -p bin
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-run: $(TEST_EXE)
-	./$(TEST_EXE)
-
 clean:
 	rm -rf obj/* bin/*
