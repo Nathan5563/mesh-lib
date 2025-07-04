@@ -53,7 +53,7 @@ Optimizations were chosen based on performance analysis from the following tools
 These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`, aligning the memory-mapped region for better codegen, and using `memchr` instead of a `while` loop for better SIMD evaluation.
 
 ### Comparison with tinyobjloader
-Using the final version of the library thus far (after optimizations 1 and 2), averaged over 8 runs,
+Averaged over 8 runs,
 | Metric | `mesh-lib`                    | `tinyobjloader`               |
 | ------ | ----------------------------- | ----------------------------- |
 | real   | **0.095s**                     | **0.438s**                     |
