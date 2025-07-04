@@ -66,6 +66,7 @@ The difference becomes bigger with the following 2.5 GB obj file:
 
 <img src="https://github.com/user-attachments/assets/2d5aaad9-80eb-4e7b-bf6d-ca91e7e2e68b" alt="Blender 3.0 splash screen" width="500px" />
 
+Averaged over 8 runs,
 | Metric | `mesh-lib`                    | `tinyobjloader`               |
 | ------ | ----------------------------- | ----------------------------- |
 | real   | **2.661s**                     | **19.312s**                     |
