@@ -37,11 +37,7 @@ The mesh is represented as a struct containing the following:
 Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate.
 
 ### Performance Analysis
-Initial analysis was done using the Linux `time` tool and the following obj file:
-
-<img src="https://github.com/user-attachments/assets/ef1643e0-1289-443e-a059-c70b4c84c5a8" alt="Chinese dragon model in Blender" width="500px" />
-
-The test harness loads the obj file into whatever data structure is used to represent the mesh, then returns after freeing memory.
+Initial analysis was done using the Linux `time` tool. The test harness loads the obj file into whatever data structure is used to represent the mesh, then returns after freeing memory.
 
 **Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by averaging multiple runs.**
 
@@ -53,6 +49,10 @@ Optimizations were chosen based on performance analysis from the following tools
 These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`, aligning the memory-mapped region for better codegen, and using `memchr` instead of a `while` loop for better SIMD evaluation.
 
 ### Comparison with tinyobjloader
+Using the following obj file,
+
+<img src="https://github.com/user-attachments/assets/ef1643e0-1289-443e-a059-c70b4c84c5a8" alt="Chinese dragon model in Blender" width="400px" />
+
 Averaged over 8 runs,
 | Metric | `mesh-lib`                    | `tinyobjloader`               |
 | ------ | ----------------------------- | ----------------------------- |
