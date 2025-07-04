@@ -1,15 +1,20 @@
 #include <iostream>
 #include <cctype>
 #include <cmath>
-#include <charconv>
+#include "../lib/fast_float/fast_float.h"
 
 #include "obj-parser.hpp"
 #include "../include/mesh.hpp"
 
-static void parseVertex(Mesh &mesh, std::string &buf, std::string_view line);
-static bool updateVertex(Vertex &v, std::string &buf);
-static void parseFace(Mesh &mesh, std::string &buf, std::string_view line);
-static bool updateFace(Mesh &mesh, Face &f, std::string &buf);
+static void parseVertex(Mesh &mesh, std::string_view line);
+static bool updateVertex(Vertex &v, const char *start, size_t len);
+static void parseFace(Mesh &mesh, std::string_view line);
+static bool updateFace(Mesh &mesh, Face &f, const char *start, size_t len);
+
+inline bool is_space(char c)
+{
+    return c == ' ' || c == '\t';
+}
 
 // ---------------------------------------------------------------------------
 //   Core API
@@ -22,12 +27,16 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
     std::string buf;
     while (pos < static_cast<size_t>(file_size))
     {
-        line_end = pos;
-        while (line_end < static_cast<size_t>(file_size) &&
-               obj_file[line_end] != '\n' &&
-               obj_file[line_end] != '\r')
+        const char *start = obj_file + pos;
+        const char *end = obj_file + file_size;
+        const char *newline = static_cast<const char *>(memchr(start, '\n', end - start));
+        if (newline == nullptr)
         {
-            ++line_end;
+            line_end = file_size;
+        }
+        else
+        {
+            line_end = newline - obj_file;
         }
 
         std::string_view line(obj_file + pos, line_end - pos);
@@ -45,7 +54,7 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
 
         if (line.empty() ||
             line[0] == '#' ||
-            std::isspace(static_cast<unsigned char>(line[0])))
+            is_space(line[0]))
         {
             continue;
         }
@@ -53,18 +62,18 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
                  (line[1] != ' ') ||
                  ((line[0] != 'v') && (line[0] != 'f')))
         {
-            std::cerr << "Unsupported features detected" << std::endl;
+            // std::cerr << "Unsupported features detected" << std::endl;
             continue;
         }
         else
         {
             if (line[0] == 'v')
             {
-                parseVertex(mesh, buf, line);
+                parseVertex(mesh, line);
             }
             else
             {
-                parseFace(mesh, buf, line);
+                parseFace(mesh, line);
             }
         }
     }
@@ -89,43 +98,45 @@ void exportMeshToObj(const Mesh &mesh)
 //   Helpers
 // ---------------------------------------------------------------------------
 
-static void parseVertex(Mesh &mesh, std::string &buf, std::string_view line)
+static void parseVertex(Mesh &mesh, std::string_view line)
 {
-    buf.clear();
     size_t line_length = line.size();
-
     Vertex v = {NAN, NAN, NAN};
-    for (size_t idx = 2; idx < line_length; ++idx)
+
+    const char *ptr = line.data() + 2;
+    const char *end = line.data() + line_length;
+
+    while (ptr < end)
     {
-        if (std::isspace(static_cast<unsigned char>(line[idx])))
+        while (ptr < end && is_space(*ptr))
         {
-            if (!buf.empty())
+            ++ptr;
+        }
+
+        const char *token_start = ptr;
+        while (ptr < end && !is_space(*ptr))
+        {
+            ++ptr;
+        }
+
+        size_t len = ptr - token_start;
+        if (len > 0)
+        {
+            bool done = updateVertex(v, token_start, len);
+            if (done)
             {
-                bool done = updateVertex(v, buf);
-                buf.clear();
-                if (done)
-                {
-                    break;
-                }
+                break;
             }
         }
-        else
-        {
-            buf += line[idx];
-        }
-    }
-    if (!buf.empty())
-    {
-        updateVertex(v, buf);
     }
 
     mesh.vertices.push_back(v);
 }
 
-static bool updateVertex(Vertex &v, std::string &buf)
+static bool updateVertex(Vertex &v, const char *start, size_t len)
 {
     float coord;
-    auto r = std::from_chars(buf.data(), buf.data() + buf.size(), coord);
+    auto r = fast_float::from_chars(start, start + len, coord);
     if (r.ec != std::errc())
     {
         // WARNING: handle parse error
@@ -149,55 +160,54 @@ static bool updateVertex(Vertex &v, std::string &buf)
     return res;
 }
 
-static void parseFace(Mesh &mesh, std::string &buf, std::string_view line)
+static void parseFace(Mesh &mesh, std::string_view line)
 {
-    buf.clear();
     size_t line_length = line.size();
-
     Face f = {0, 0, 0};
-    for (size_t idx = 2; idx < line_length; ++idx)
+
+    const char *ptr = line.data() + 2;
+    const char *end = line.data() + line_length;
+
+    while (ptr < end)
     {
-        if (std::isspace(static_cast<unsigned char>(line[idx])))
+        while (ptr < end && is_space(*ptr))
         {
-            if (!buf.empty())
+            ++ptr;
+        }
+
+        const char *token_start = ptr;
+        while (ptr < end && !is_space(*ptr) && *ptr != '/')
+        {
+            ++ptr;
+        }
+
+        size_t len = ptr - token_start;
+        if (len > 0)
+        {
+            bool done = updateFace(mesh, f, token_start, len);
+            if (done)
             {
-                bool done = updateFace(mesh, f, buf);
-                buf.clear();
-                if (done)
-                {
-                    break;
-                }
+                break;
             }
         }
-        else if (line[idx] == '/')
+
+        while (ptr < end && !is_space(*ptr))
         {
-            while (idx < line_length &&
-                   !std::isspace(static_cast<unsigned char>(line[idx])))
-            {
-                ++idx;
-            }
+            ++ptr;
         }
-        else
-        {
-            buf += line[idx];
-        }
-    }
-    if (!buf.empty())
-    {
-        updateFace(mesh, f, buf);
     }
 
     mesh.faces.push_back(f);
 }
 
 // WARNING: face indices use int width (32 bits)
-static bool updateFace(Mesh &mesh, Face &f, std::string &buf)
+static bool updateFace(Mesh &mesh, Face &f, const char *start, size_t len)
 {
     int index = 0;
-    auto r = std::from_chars(buf.data(), buf.data() + buf.size(), index);
+    auto r = fast_float::from_chars(start, start + len, index);
     if (r.ec != std::errc())
     {
-        // WARNING: handle parse error (e.g., skip or report)
+        // WARNING: handle parse error
     }
     if (index < 0)
     {
