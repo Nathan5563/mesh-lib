@@ -24,12 +24,13 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
 {
     size_t pos = 0;
     size_t line_end = 0;
-    std::string buf;
+    const char *start, *end, *newline = nullptr;
+    std::string_view line;
     while (pos < static_cast<size_t>(file_size))
     {
-        const char *start = obj_file + pos;
-        const char *end = obj_file + file_size;
-        const char *newline = static_cast<const char *>(memchr(start, '\n', end - start));
+        start = obj_file + pos;
+        end = obj_file + file_size;
+        newline = static_cast<const char *>(memchr(start, '\n', end - start));
         if (newline == nullptr)
         {
             line_end = file_size;
@@ -39,7 +40,7 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
             line_end = newline - obj_file;
         }
 
-        std::string_view line(obj_file + pos, line_end - pos);
+        line = std::string_view(obj_file + pos, line_end - pos);
         pos = line_end;
         if (pos < static_cast<size_t>(file_size) &&
             obj_file[pos] == '\r')

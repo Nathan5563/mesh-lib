@@ -38,11 +38,11 @@ void Mesh::fromObj(const std::string &path)
     off_t file_size = st.st_size;
     if (file_size == 0)
     {
-        fprintf(stderr, "File size is zero\n");
+        std::cerr << "File size is zero" << std::endl;
         close(fd);
         return;
     }
-    char *data = static_cast<char *>(mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0));
+    char *data = static_cast<char *>(mmap(nullptr, file_size, PROT_READ, MAP_POPULATE | MAP_PRIVATE, fd, 0));
     if (data == MAP_FAILED)
     {
         perror("mmap");
