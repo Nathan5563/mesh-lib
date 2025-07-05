@@ -67,9 +67,9 @@ Using the following obj file,
 Averaged over 8 runs,
 | Metric | `mesh-lib` | `tinyobjloader` |
 | ------ | ----------------------------- | ----------------------------- |
-| real | **0.095s** | **0.438s** |
-| user | **0.077s** | **0.288s** |
-| sys | **0.028s** | **0.163s** |
+| real | **0.081s** | **0.438s** |
+| user | **0.062s** | **0.288s** |
+| sys | **0.025s** | **0.163s** |
 
 `tinyobjloader` is slower here due to more page faults, according to `perf stat`. `mesh-lib` records **14,710** page faults, whereas `tinyobjloader` records **50,961**. `mesh-lib` also has less functionality, but I'm not sure yet how much, if at all, the extra functionality plays a part.
 
