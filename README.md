@@ -46,21 +46,17 @@ Note that both `vertices` and `faces` are 0-indexed, so the obj input and output
 
 ### Performance Analysis
 
-Initial analysis was done using the Linux `time` tool. The test harness loads the obj file into whatever data structure is used to represent the mesh, then returns after freeing memory.
-
-**Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by averaging multiple runs.**
-
-Optimizations were chosen based on performance analysis from the following tools:
+Initial analysis was done using the Linux `time` tool. The test harness loads the obj file into whatever data structure is used to represent the mesh, then returns after freeing memory. Optimizations were chosen based on performance analysis from the following tools:
 
 - `perf stat`
 - `perf record` with `perf report` TUI
 - `valgrind --tool=callgrind` with `kcachegrind` GUI
 
-These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`, aligning the memory-mapped region for better codegen, and using `memchr` instead of a `while` loop for better SIMD evaluation.
+These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`/`stof`, aligning the memory-mapped region to 64B for better codegen, and using `memchr` instead of a `while` loop for better SIMD evaluation. I implemented a two-pass parser in the `two-pass` branch, the first pass being used to count the number of vertices and faces to avoid multiple reallocations. The performance ended up being similar, so I have not merged it into main.
 
-### Comparison with tinyobjloader
+#### Comparison with tinyobjloader
 
-Using the following obj file,
+Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by averaging multiple runs. Using the following obj file (source [here](https://download.blender.org/archive/gallery/blender-splash-screens/blender-3-0/)),
 
 <img src="https://github.com/user-attachments/assets/ef1643e0-1289-443e-a059-c70b4c84c5a8" alt="Chinese dragon model in Blender" width="400px" />
 
@@ -73,7 +69,7 @@ Averaged over 8 runs,
 
 `tinyobjloader` is slower here due to more page faults, according to `perf stat`. `mesh-lib` records **14,710** page faults, whereas `tinyobjloader` records **50,961**. `mesh-lib` also has less functionality, but I'm not sure yet how much, if at all, the extra functionality plays a part.
 
-The difference becomes bigger with the following 2.5 GB obj file:
+The difference becomes bigger with the following 2.5 GB obj file (source [here](https://casual-effects.com/data/)):
 
 <img src="https://github.com/user-attachments/assets/2d5aaad9-80eb-4e7b-bf6d-ca91e7e2e68b" alt="Blender 3.0 splash screen" width="500px" />
 
@@ -86,9 +82,9 @@ Averaged over 8 runs,
 
 Note that the values for `tinyobjloader` match the values measured in this [blog post](https://aras-p.info/blog/2022/05/14/comparing-obj-parse-libraries/).
 
-### Performance Analysis
+#### Further Optimization
 
-Output of `perf report`:
+Output of `perf report` for the Blender splash screen:
 
 ```bash
 # Total Lost Samples: 0
