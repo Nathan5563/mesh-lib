@@ -46,7 +46,7 @@ Optimizations were chosen based on performance analysis from the following tools
 - `perf record` with `perf report` TUI
 - `valgrind --tool=callgrind` with `kcachegrind` GUI
 
-These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`, aligning the memory-mapped region for better codegen, and using `memchr` instead of a `while` loop for better SIMD evaluation.
+These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`, aligning the memory-mapped region for better codegen, using `memchr` instead of a `while` loop for better SIMD evaluation, and implementing a two-pass scan to reserve space/avoid realloc-ing vectors.
 
 ### Comparison with tinyobjloader
 Using the following obj file,
@@ -69,8 +69,8 @@ The difference becomes bigger with the following 2.5 GB obj file:
 Averaged over 8 runs,
 | Metric | `mesh-lib`                    | `tinyobjloader`               |
 | ------ | ----------------------------- | ----------------------------- |
-| real   | **2.661s**                     | **19.312s**                     |
-| user   | **1.900s**                     | **15.987s**                     |
-| sys    | **0.618s**                     | **2.747s**                     |
+| real   | **2.372s**                     | **19.312s**                     |
+| user   | **2.183s**                     | **15.987s**                     |
+| sys    | **0.355s**                     | **2.747s**                     |
 
 Note that the values for `tinyobjloader` match the values measured in this [blog post](https://aras-p.info/blog/2022/05/14/comparing-obj-parse-libraries/).

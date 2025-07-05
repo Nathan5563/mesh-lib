@@ -6,6 +6,7 @@
 #include "obj-parser.hpp"
 #include "../include/mesh.hpp"
 
+static void countAndPrealloc(const char *obj_file, off_t file_size, Mesh &mesh);
 static void parseVertex(Mesh &mesh, std::string_view line);
 static bool updateVertex(Vertex &v, const char *start, size_t len);
 static void parseFace(Mesh &mesh, std::string_view line);
@@ -22,9 +23,12 @@ inline bool is_space(char c)
 
 void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
 {
+    // First pass: count vertices and faces to preallocate memory
+    countAndPrealloc(obj_file, file_size, mesh);
+
+    // Second pass: previous parsing logic
     size_t pos = 0;
     size_t line_end = 0;
-    std::string buf;
     while (pos < static_cast<size_t>(file_size))
     {
         const char *start = obj_file + pos;
@@ -97,6 +101,52 @@ void exportMeshToObj(const Mesh &mesh)
 // ---------------------------------------------------------------------------
 //   Helpers
 // ---------------------------------------------------------------------------
+
+static void countAndPrealloc(const char *obj_file, off_t file_size, Mesh &mesh)
+{
+    size_t vertex_count = 0;
+    size_t face_count = 0;
+    size_t pos = 0;
+    size_t line_end = 0;
+    while (pos < static_cast<size_t>(file_size))
+    {
+        const char *start = obj_file + pos;
+        const char *end = obj_file + file_size;
+        const char *newline = static_cast<const char *>(memchr(start, '\n', end - start));
+        if (newline == nullptr)
+        {
+            line_end = file_size;
+        }
+        else
+        {
+            line_end = newline - obj_file;
+        }
+
+        if ((line_end - pos) >= 2 && obj_file[pos + 1] == ' ')
+        {
+            if (obj_file[pos] == 'v')
+            {
+                ++vertex_count;
+            }
+            else if (obj_file[pos] == 'f')
+            {
+                ++face_count;
+            }
+        }
+
+        pos = line_end;
+        if (pos < static_cast<size_t>(file_size) && obj_file[pos] == '\r')
+        {
+            ++pos;
+        }
+        if (pos < static_cast<size_t>(file_size) && obj_file[pos] == '\n')
+        {
+            ++pos;
+        }
+    }
+    mesh.vertices.reserve(vertex_count);
+    mesh.faces.reserve(face_count);
+}
 
 static void parseVertex(Mesh &mesh, std::string_view line)
 {
