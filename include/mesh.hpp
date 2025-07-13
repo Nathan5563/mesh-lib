@@ -11,13 +11,29 @@ struct Vertex
     float x, y, z;
 };
 
+struct Texture
+{
+    float u, v;
+};
+
+struct Normal
+{
+    float x, y, z;
+};
+
 // Represents a face in the 3D coordinate plane.
 //
 // WARNING: All faces are currently expected to be triangles.
 struct Face
 {
     // Indices into the list of vertices
-    size_t a, b, c;
+    int64_t v1, v2, v3;
+
+    // Indices into the list of textures
+    int64_t vt1, vt2, vt3;
+
+    // Indices into the list of normals
+    int64_t vn1, vn2, vn3;
 };
 
 struct Mesh
@@ -27,6 +43,10 @@ struct Mesh
 
     // 0-indexed list of all faces in the mesh
     std::vector<Face> faces;
+
+    std::vector<Texture> textures;
+
+    std::vector<Normal> normals;
 
     // Clear the contents of the calling Mesh object
     void clear();

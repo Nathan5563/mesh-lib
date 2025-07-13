@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 
 #include "../include/mesh.hpp"
-#include "obj-parser.hpp"
+#include "../include/obj-parser.hpp"
 
 // ---------------------------------------------------------------------------
 //   Core API

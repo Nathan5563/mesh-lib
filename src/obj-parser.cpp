@@ -1,17 +1,21 @@
 #include <iostream>
-#include <cctype>
-#include <cmath>
 #include "../lib/fast_float/fast_float.h"
 
-#include "obj-parser.hpp"
+#include "../include/obj-parser.hpp"
 #include "../include/mesh.hpp"
 
-static void parseVertex(Mesh &mesh, std::string_view line);
-static bool updateVertex(Vertex &v, const char *start, size_t len);
-static void parseFace(Mesh &mesh, std::string_view line);
-static bool updateFace(Mesh &mesh, Face &f, const char *start, size_t len);
+// ---------------------------------------------------------------------------
+//   Forward Declarations and Inline Functions
+// ---------------------------------------------------------------------------
 
-inline bool is_space(char c)
+static void parseLine(Mesh &mesh, std::string_view line);
+static void parseVertex(Mesh &mesh, std::string_view line);
+static void parseTexture(Mesh &mesh, std::string_view line);
+static void parseNormal(Mesh &mesh, std::string_view line);
+static void parseFace(Mesh &mesh, std::string_view line);
+static int parseIndex(const char *start, const char *end, size_t size);
+static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx);
+inline bool is_space(char c) 
 {
     return c == ' ' || c == '\t';
 }
@@ -24,211 +28,306 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
 {
     size_t pos = 0;
     size_t line_end = 0;
-    const char *start, *end, *newline = nullptr;
     std::string_view line;
-    while (pos < static_cast<size_t>(file_size))
-    {
-        start = obj_file + pos;
-        end = obj_file + file_size;
-        newline = static_cast<const char *>(memchr(start, '\n', end - start));
-        if (newline == nullptr)
-        {
-            line_end = file_size;
-        }
-        else
-        {
-            line_end = newline - obj_file;
-        }
-
+    while (pos < static_cast<size_t>(file_size)) {
+        const char *start = obj_file + pos;
+        const char *end = obj_file + file_size;
+        const char *newline = static_cast<const char *>(memchr(start, '\n', end - start));
+        
+        // Get a view of the current line
+        line_end = newline ? (newline - obj_file) : file_size;
         line = std::string_view(obj_file + pos, line_end - pos);
-        pos = line_end;
-        if (pos < static_cast<size_t>(file_size) &&
-            obj_file[pos] == '\r')
-        {
-            ++pos;
-        }
-        if (pos < static_cast<size_t>(file_size) &&
-            obj_file[pos] == '\n')
-        {
-            ++pos;
-        }
 
-        if (line.empty() ||
-            line[0] == '#' ||
-            is_space(line[0]))
-        {
-            continue;
-        }
-        else if ((line.size() < 2) ||
-                 (line[1] != ' ') ||
-                 ((line[0] != 'v') && (line[0] != 'f')))
-        {
-            // std::cerr << "Unsupported features detected" << std::endl;
-            continue;
-        }
-        else
-        {
-            if (line[0] == 'v')
-            {
-                parseVertex(mesh, line);
-            }
-            else
-            {
-                parseFace(mesh, line);
-            }
-        }
+        // Setup the next line before parsing to avoid infinite loops on `continue`
+        pos = newline ? line_end + 1 : file_size;
+
+        // Pass leading whitespace
+        size_t i = 0;
+        for (; i < line.size() && is_space(line[i]); ++i);
+
+        // Skip comments and empty lines
+        if (i >= line.size() || line[i] == '#') continue;
+
+        parseLine(mesh, line.substr(i));
     }
 }
 
-void exportMeshToObj(const Mesh &mesh)
-{
-    std::cout << "# Vertices:" << std::endl;
-    for (const auto &vertex : mesh.vertices)
+void exportMeshToObj(const Mesh &mesh) {
+    for (auto &v : mesh.vertices)
     {
-        std::cout << "v " << vertex.x << " " << vertex.y << " " << vertex.z << std::endl;
+        std::cout << "v " << v.x << ' ' << v.y << ' ' << v.z << '\n';
+    }
+    for (auto &t : mesh.textures)
+    {
+        std::cout << "vt " << t.u << ' ' << t.v << '\n';
+    }
+    for (auto &n : mesh.normals)
+    {
+        std::cout << "vn " << n.x << ' ' << n.y << ' ' << n.z << '\n';
+    }
+    
+    auto printIndex = [](int idx) {
+        if (idx == -1) std::cout << "";
+        else std::cout << (idx + 1);
+    };
+
+    for (auto &f : mesh.faces) {
+        std::cout << "f ";
+        // vertex 1
+        std::cout << (f.v1 + 1) << '/';
+        printIndex(f.vt1);
+        std::cout << '/';
+        printIndex(f.vn1);
+        std::cout << ' ';
+        // vertex 2
+        std::cout << (f.v2 + 1) << '/';
+        printIndex(f.vt2);
+        std::cout << '/';
+        printIndex(f.vn2);
+        std::cout << ' ';
+        // vertex 3
+        std::cout << (f.v3 + 1) << '/';
+        printIndex(f.vt3);
+        std::cout << '/';
+        printIndex(f.vn3);
+        std::cout << '\n';
+    }
+}
+
+// ---------------------------------------------------------------------------
+//   Templates
+// ---------------------------------------------------------------------------
+
+template<typename T>
+void customPushBack(std::vector<T>& vec, const T& value, float growth_factor = 4.0f) {
+    if (vec.size() == vec.capacity()) {
+        size_t new_capacity = static_cast<size_t>(vec.capacity() * growth_factor);
+        if (new_capacity <= vec.capacity()) {
+            // Handle small capacities like 0 or 1:
+            new_capacity = vec.capacity() + 1;
+        }
+        vec.reserve(new_capacity);
+    }
+    vec.push_back(value);
+}
+
+template <typename Callback>
+static void forEachComponent(std::string_view line, size_t max_components, Callback cb)
+{
+    const char *ptr = line.data();
+    const char *end = ptr + line.size();
+    const char *start;
+    size_t num_components = 0;
+    while (ptr < end && num_components < max_components)
+    {
+        // Pass whitespace
+        while (ptr < end && is_space(*ptr)) ++ptr;
+
+        // Get a pointer and a size for the current component
+        start = ptr;
+        while (ptr < end && !is_space(*ptr)) ++ptr;
+
+        // If there was a component found, call the callback
+        if (ptr > start) cb(start, ptr, num_components);
+
+        // Increment the number of components
+        ++num_components;
+    }
+}
+
+template <typename T>
+static inline bool toNumber(const char *start, const char *end, T &out)
+{
+    auto result = fast_float::from_chars(start, end, out);
+    return result.ec == std::errc();
+}
+
+// ---------------------------------------------------------------------------
+//   Parsers
+// ---------------------------------------------------------------------------
+
+static void parseLine(Mesh &mesh, std::string_view line)
+{
+    if (line.size() < 5)
+    {
+        return;
     }
 
-    std::cout << "# Faces:" << std::endl;
-    for (const auto &face : mesh.faces)
+    if (line[0] == 'v')
     {
-        std::cout << "f " << face.a + 1 << " " << face.b + 1 << " " << face.c + 1 << std::endl;
+        if (is_space(line[1]))
+        {
+            parseVertex(mesh, line.substr(2));
+        }
+        else if (line[1] == 't' && is_space(line[2]))
+        {
+            parseTexture(mesh, line.substr(3));
+        }
+        else if (line[1] == 'n' && is_space(line[2]))
+        {
+            parseNormal(mesh, line.substr(3));
+        }
     }
+    else if (line[0] == 'f' && is_space(line[1]))
+    {
+        parseFace(mesh, line.substr(2));
+    }
+}
+
+static void parseVertex(Mesh &mesh, std::string_view line)
+{
+    Vertex v = {NAN, NAN, NAN};
+
+    forEachComponent(
+        line,
+        3,
+        [&](const char *start, const char *end, size_t state) 
+        {
+            float val;
+            if (toNumber(start, end, val))
+            {
+                if (state == 0) v.x = val;
+                else if (state == 1) v.y = val;
+                else if (state == 2) v.z = val;
+            }
+            else
+            {
+                // ERROR
+            }
+        }
+    );
+
+    customPushBack(mesh.vertices, v);
+}
+
+static void parseTexture(Mesh &mesh, std::string_view line)
+{
+    Texture t = {NAN, NAN};
+
+    forEachComponent(
+        line,
+        2,
+        [&](const char *start, const char *end, size_t state)
+        {
+            float val;
+            if (toNumber(start, end, val))
+            {
+                if (state == 0) t.u = val;
+                else if (state == 1) t.v = val;
+            }
+            else
+            {
+                // ERROR
+            }
+        }
+    );
+
+    customPushBack(mesh.textures, t);
+}
+
+static void parseNormal(Mesh &mesh, std::string_view line)
+{
+    Normal n = {NAN, NAN, NAN};
+
+    forEachComponent(
+        line,
+        3,
+        [&](const char *start, const char *end, size_t state)
+        {
+            float val;
+            if (toNumber(start, end, val))
+            {
+                if (state == 0) n.x = val;
+                else if (state == 1) n.y = val;
+                else if (state == 2) n.z = val;
+            }
+            else
+            {
+                // ERROR
+            }
+        }
+    );
+
+    customPushBack(mesh.normals, n);
+}
+
+static void parseFace(Mesh &mesh, std::string_view line)
+{
+    Face f = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+    const char *ptr = line.data();
+    const char *end = ptr + line.size();
+
+    const char *start;
+    size_t state = 0;
+    while (ptr < end && state < 3)
+    {
+        // Pass whitespace
+        while (ptr < end && is_space(*ptr)) ++ptr;
+
+        // Get a pointer and a size for the current component
+        start = ptr;
+        while (ptr < end && !is_space(*ptr)) ++ptr;
+
+        // Parse the face, keeping track of '/' separators to get textures and normals
+        const char *slash1 = static_cast<const char *>(memchr(start, '/', ptr - start));
+        const char *slash2 = nullptr;
+        int v_idx = parseIndex(start, slash1 ? slash1 : ptr, mesh.vertices.size());
+        int vt_idx = -1;
+        int vn_idx = -1;
+        if (slash1 && slash1 + 1 < ptr)
+        {
+            slash2 = static_cast<const char *>(memchr(slash1 + 1, '/', ptr - (slash1 + 1)));
+            vt_idx = parseIndex(slash1 + 1, slash2 ? slash2 : ptr, mesh.textures.size());
+            if (slash2 && slash2 + 1 < ptr)
+            {
+                vn_idx = parseIndex(slash2 + 1, ptr, mesh.normals.size());
+            }
+        }
+
+        // Save the indices in the Face
+        updateFace(f, state, v_idx, vt_idx, vn_idx);
+
+        ++state;
+    }
+
+    customPushBack(mesh.faces, f);
+}
+
+static int parseIndex(const char *start, const char *end, size_t size)
+{
+    int idx = 0;
+    if (toNumber(start, end, idx)) 
+    {
+        if (idx < 0) idx = static_cast<int>(size) + idx + 1;
+        if (idx > 0) return idx - 1;
+    }
+    // Represent invalid indices with -1
+    return -1;
 }
 
 // ---------------------------------------------------------------------------
 //   Helpers
 // ---------------------------------------------------------------------------
 
-static void parseVertex(Mesh &mesh, std::string_view line)
+static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx)
 {
-    size_t line_length = line.size();
-    Vertex v = {NAN, NAN, NAN};
-
-    const char *ptr = line.data() + 2;
-    const char *end = line.data() + line_length;
-
-    while (ptr < end)
+    if (state == 0)
     {
-        while (ptr < end && is_space(*ptr))
-        {
-            ++ptr;
-        }
-
-        const char *token_start = ptr;
-        while (ptr < end && !is_space(*ptr))
-        {
-            ++ptr;
-        }
-
-        size_t len = ptr - token_start;
-        if (len > 0)
-        {
-            bool done = updateVertex(v, token_start, len);
-            if (done)
-            {
-                break;
-            }
-        }
+        f.v1 = v_idx;
+        f.vt1 = vt_idx;
+        f.vn1 = vn_idx;
     }
-
-    mesh.vertices.push_back(v);
-}
-
-static bool updateVertex(Vertex &v, const char *start, size_t len)
-{
-    float coord;
-    auto r = fast_float::from_chars(start, start + len, coord);
-    if (r.ec != std::errc())
+    else if (state == 1)
     {
-        // WARNING: handle parse error
+        f.v2 = v_idx;
+        f.vt2 = vt_idx;
+        f.vn2 = vn_idx;
     }
-
-    bool res = false;
-    if (std::isnan(v.x))
+    else if (state == 2)
     {
-        v.x = coord;
+        f.v3 = v_idx;
+        f.vt3 = vt_idx;
+        f.vn3 = vn_idx;
     }
-    else if (std::isnan(v.y))
-    {
-        v.y = coord;
-    }
-    else if (std::isnan(v.z))
-    {
-        v.z = coord;
-        res = true;
-    }
-
-    return res;
-}
-
-static void parseFace(Mesh &mesh, std::string_view line)
-{
-    size_t line_length = line.size();
-    Face f = {0, 0, 0};
-
-    const char *ptr = line.data() + 2;
-    const char *end = line.data() + line_length;
-
-    while (ptr < end)
-    {
-        while (ptr < end && is_space(*ptr))
-        {
-            ++ptr;
-        }
-
-        const char *token_start = ptr;
-        while (ptr < end && !is_space(*ptr) && *ptr != '/')
-        {
-            ++ptr;
-        }
-
-        size_t len = ptr - token_start;
-        if (len > 0)
-        {
-            bool done = updateFace(mesh, f, token_start, len);
-            if (done)
-            {
-                break;
-            }
-        }
-
-        while (ptr < end && !is_space(*ptr))
-        {
-            ++ptr;
-        }
-    }
-
-    mesh.faces.push_back(f);
-}
-
-// WARNING: face indices use int width (32 bits)
-static bool updateFace(Mesh &mesh, Face &f, const char *start, size_t len)
-{
-    int index = 0;
-    auto r = fast_float::from_chars(start, start + len, index);
-    if (r.ec != std::errc())
-    {
-        // WARNING: handle parse error
-    }
-    if (index < 0)
-    {
-        index = static_cast<int>(mesh.vertices.size()) + index + 1;
-    }
-
-    bool res = false;
-    if (f.a == 0)
-    {
-        f.a = static_cast<size_t>(index) - 1;
-    }
-    else if (f.b == 0)
-    {
-        f.b = static_cast<size_t>(index) - 1;
-    }
-    else if (f.c == 0)
-    {
-        f.c = static_cast<size_t>(index) - 1;
-        res = true;
-    }
-
-    return res;
 }
