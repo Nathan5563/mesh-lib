@@ -15,9 +15,11 @@ int main(int argc, char* argv[])
 
     Mesh mesh;
 
-    mesh.fromObj(path);
+    // Try "mesh.fromObj" or "mesh.fromObjParallel"
+    mesh.fromObjParallel(path);
     
-    mesh.toObj();
+    // Uncomment to export the mesh to stdout in obj format
+    // mesh.toObj();
 
     return 0;
 }

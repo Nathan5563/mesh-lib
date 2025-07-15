@@ -1,19 +1,19 @@
-event syntax error: 'cpu_atom/TOPDOWN_BE_BOUND.ALL_P,metric-id=cpu_atom!3TOPDOW..'
+event syntax error: 'cpu_atom/TOPDOWN_BE_BOUND.ALL_P,metric-id=cpu..'
                      \___ Bad event or PMU
 
 Unable to find PMU or event on a PMU of 'cpu_atom'
 
- Performance counter stats for './bin/harness data/blendersplash.obj':
+ Performance counter stats for '../bin/harness ../data/blendersplash.obj':
 
-           4117.71 msec task-clock:u                     #    1.021 CPUs utilized             
+          12148.26 msec task-clock:u                     #    4.525 CPUs utilized             
                  0      context-switches:u               #    0.000 /sec                      
                  0      cpu-migrations:u                 #    0.000 /sec                      
-            510129      page-faults:u                    #  123.886 K/sec                     
+           1404349      page-faults:u                    #  115.601 K/sec                     
    <not supported>      cycles:u                                                              
 
-       4.033372870 seconds time elapsed
+       2.684524213 seconds time elapsed
 
-       3.247128000 seconds user
-       0.871081000 seconds sys
+       8.442056000 seconds user
+       3.676700000 seconds sys
 
 

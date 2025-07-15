@@ -41,7 +41,7 @@ struct Mesh
     // 0-indexed list of all vertices in the mesh
     std::vector<Vertex> vertices;
 
-    // 0-indexed list of all faces in the mesh
+    // 1-indexed list of all faces in the mesh as appears in the obj file
     std::vector<Face> faces;
 
     std::vector<Texture> textures;
@@ -53,6 +53,10 @@ struct Mesh
 
     // Replace the calling Mesh object's data with data from a .obj file
     void fromObj(const std::string &path);
+
+    // Replace the calling Mesh object's data with data from a .obj file
+    // Uses threads to parallelize parsing
+    void fromObjParallel(const std::string &path);
 
     // Export the calling Mesh object in .obj format to stdout
     void toObj() const;
