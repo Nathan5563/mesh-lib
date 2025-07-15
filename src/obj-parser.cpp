@@ -160,7 +160,7 @@ void exportMeshToObj(const Mesh &mesh)
 // ---------------------------------------------------------------------------
 
 template <typename T>
-void customPushBack(std::vector<T> &vec, const T &value, float growth_factor = 4.0f)
+static void customPushBack(std::vector<T> &vec, const T &value, float growth_factor = 4.0f)
 {
     if (vec.size() == vec.capacity())
     {
@@ -462,7 +462,7 @@ static void mergeMeshes(Mesh &main_mesh, const Mesh &partial_mesh, std::mutex &m
 {
     std::lock_guard<std::mutex> lock(mesh_mutex);
 
-    // Append vertices, textures, normals (optional, you can still append them)
+    // Append vertices, textures, normals
     main_mesh.vertices.insert(main_mesh.vertices.end(), partial_mesh.vertices.begin(), partial_mesh.vertices.end());
     main_mesh.textures.insert(main_mesh.textures.end(), partial_mesh.textures.begin(), partial_mesh.textures.end());
     main_mesh.normals.insert(main_mesh.normals.end(), partial_mesh.normals.begin(), partial_mesh.normals.end());

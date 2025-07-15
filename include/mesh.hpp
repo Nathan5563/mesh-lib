@@ -56,6 +56,7 @@ struct Mesh
 
     // Replace the calling Mesh object's data with data from a .obj file
     // Uses threads to parallelize parsing
+    // Inspired by modern CPU architecture (out-of-order execution + in-order commit)
     void fromObjParallel(const std::string &path);
 
     // Export the calling Mesh object in .obj format to stdout
