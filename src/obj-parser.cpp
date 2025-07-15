@@ -19,9 +19,9 @@ inline bool is_space(char c)
 {
     return c == ' ' || c == '\t';
 }
-inline const char* findNewline(const char* start, const char* end) {
+inline const char* findChar(const char* start, const char* end, char c) {
     for (const char* ptr = start; ptr < end; ++ptr) {
-        if (*ptr == '\n') return ptr;
+        if (*ptr == c) return ptr;
     }
     return nullptr;
 }
@@ -38,7 +38,7 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
     while (pos < static_cast<size_t>(file_size)) {
         const char *start = obj_file + pos;
         const char *end = obj_file + file_size;
-        const char *newline = static_cast<const char *>(findNewline(start, end));
+        const char *newline = static_cast<const char *>(findChar(start, end, '\n'));
         
         // Get a view of the current line
         line_end = newline ? (newline - obj_file) : file_size;
@@ -276,14 +276,14 @@ static void parseFace(Mesh &mesh, std::string_view line)
         while (ptr < end && !is_space(*ptr)) ++ptr;
 
         // Parse the face, keeping track of '/' separators to get textures and normals
-        const char *slash1 = static_cast<const char *>(findNewline(start, ptr));
+        const char *slash1 = static_cast<const char *>(findChar(start, ptr, '/'));
         const char *slash2 = nullptr;
         int v_idx = parseIndex(start, slash1 ? slash1 : ptr, mesh.vertices.size());
         int vt_idx = -1;
         int vn_idx = -1;
         if (slash1 && slash1 + 1 < ptr)
         {
-            slash2 = static_cast<const char *>(findNewline(slash1 + 1, ptr));
+            slash2 = static_cast<const char *>(findChar(slash1 + 1, ptr, '/'));
             vt_idx = parseIndex(slash1 + 1, slash2 ? slash2 : ptr, mesh.textures.size());
             if (slash2 && slash2 + 1 < ptr)
             {
