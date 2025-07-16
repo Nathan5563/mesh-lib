@@ -44,9 +44,9 @@ The mesh is represented as a struct containing the following:
 - `std::vector<Normal> normals`
   - `Normal` is a struct composed of three `float`s to represent x, y, and z coordinates.
 - `std::vector<Face> faces`
-  - `Face` is a struct composed of three `size_t`s to index into three vertices in the `vertices` vector.
+  - `Face` is a struct composed of nine `size_t`s to index into the above vectors.
 
-Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate.
+Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate. All indices in this representation are positive, so negative indices in obj input are also resolved.
 
 `.mtl` parsing is not yet supported.
 
@@ -58,13 +58,15 @@ Initial analysis was done using the Linux `time` tool. The test harness loads th
 - `perf record` with `perf report` TUI
 - `valgrind --tool=callgrind` with `kcachegrind` GUI
 
-These optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`/`stof`, aligning the memory-mapped region to 64B for better codegen, and using `memchr` instead of a `while` loop for better SIMD evaluation. 
+Single-threaded optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`/`stof`, and aligning the memory-mapped region to 64B for better codegen.
 
-I implemented a two-pass parser in the `two-pass` branch, the first pass being used to count the number of vertices and faces to avoid multiple reallocations. The performance ended up being similar, so I have not merged it into main.
+I implemented a two-pass parser in the `two-pass` branch, the first pass being used to count the number of vertices and faces to avoid multiple reallocations. The performance ended up being similar to the single-threaded implementation, so I have not merged it into main. Note that the branch has fallen behind in development (it doesn't support textures and normals, for example).
 
 #### Comparison with tinyobjloader
 
-Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by averaging multiple runs. Using the following ~70M obj file (source [here](https://download.blender.org/archive/gallery/blender-splash-screens/blender-3-0/)),
+Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by averaging multiple runs. 
+
+Using the following ~70M obj file (source [here](https://download.blender.org/archive/gallery/blender-splash-screens/blender-3-0/)),
 
 <img src="https://github.com/user-attachments/assets/ef1643e0-1289-443e-a059-c70b4c84c5a8" alt="Chinese dragon model in Blender" width="400px" />
 
