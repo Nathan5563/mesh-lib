@@ -46,7 +46,7 @@ The mesh is represented as a struct containing the following:
 - `std::vector<Face> faces`
   - `Face` is a struct composed of nine `size_t`s to index into the above vectors.
 
-Note that both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate. All indices in this representation are positive, so negative indices in obj input are also resolved.
+Both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate. All indices in this representation are positive, so negative indices in obj input are also resolved.
 
 `.mtl` parsing is not yet supported.
 
@@ -60,7 +60,7 @@ Initial analysis was done using the Linux `time` tool. The test harness loads th
 
 Single-threaded optimizations include using `mmap` to load the file into memory and avoid reallocations, using the `fast_float` library instead of `stoi`/`stof`, and aligning the memory-mapped region to 64B for better codegen.
 
-I implemented a two-pass parser in the `two-pass` branch, the first pass being used to count the number of vertices and faces to avoid multiple reallocations. The performance ended up being similar to the single-threaded implementation, so I have not merged it into main. Note that the branch has fallen behind in development (it doesn't support textures and normals, for example).
+I implemented a two-pass parser in the `two-pass` branch, the first pass being used to count the number of vertices and faces to avoid multiple reallocations. The performance ended up being similar to the single-threaded implementation, so I have not merged it into main. The branch has fallen behind in development (it doesn't support textures and normals, for example).
 
 #### Comparison with tinyobjloader
 
@@ -88,7 +88,7 @@ Averaged over 8 runs,
 | user   | **3.854s** | **8.395s**          | **15.987s**     |
 | sys    | **0.796s** | **2.875s**          | **2.747s**      |
 
-Note that the values for `tinyobjloader` match the values measured in this [blog post](https://aras-p.info/blog/2022/05/14/comparing-obj-parse-libraries/).
+The values for `tinyobjloader` match the values measured in this [blog post](https://aras-p.info/blog/2022/05/14/comparing-obj-parse-libraries/).
 
 #### Further Optimization
 
@@ -133,4 +133,4 @@ Output of `perf report` for the Blender splash screen on the multi-threaded impl
      0.01%  harness  libc.so.6             [.] cfree@GLIBC_2.2.5
 ```
 
-Note that the added overhead for managing threads is only an issue for very small files. Even the smallest file tested (~35M) showed minor benefits with parallelism.
+The added overhead for managing threads is only an issue for very small files. Even the smallest file tested (~35M) showed minor benefits with parallelism.
