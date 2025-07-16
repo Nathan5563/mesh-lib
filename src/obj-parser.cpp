@@ -22,12 +22,12 @@ struct Chunk
 static void parseChunk(const char *start, const char *end, Mesh &out);
 static std::vector<Chunk> splitFileIntoChunks(const char *file, size_t file_size, size_t num_threads);
 static void mergeMeshes(Mesh &main_mesh, const Mesh &partial_mesh, std::mutex &mesh_mutex);
-static void parseLine(Mesh &mesh, std::string_view line);
+static void parseLine(Mesh &mesh, std::string_view line, bool parallel);
 static void parseVertex(Mesh &mesh, std::string_view line);
 static void parseTexture(Mesh &mesh, std::string_view line);
 static void parseNormal(Mesh &mesh, std::string_view line);
-static void parseFace(Mesh &mesh, std::string_view line);
-static int parseIndex(const char *start, const char *end);
+static void parseFace(Mesh &mesh, std::string_view line, bool parallel);
+static int parseIndex(const char *start, const char *end, Mesh &mesh, int state, bool parallel);
 static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx);
 static void resolveFace(Face &f, Mesh &mesh);
 inline bool is_space(char c)
@@ -75,7 +75,7 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
         if (i >= line.size() || line[i] == '#')
             continue;
 
-        parseLine(mesh, line.substr(i));
+        parseLine(mesh, line.substr(i), false);
     }
 }
 
@@ -246,11 +246,11 @@ static void parseChunk(const char *start, const char *end, Mesh &out)
         if (i >= line.size() || line[i] == '#')
             continue;
 
-        parseLine(out, line.substr(i));
+        parseLine(out, line.substr(i), true);
     }
 }
 
-static void parseLine(Mesh &mesh, std::string_view line)
+static void parseLine(Mesh &mesh, std::string_view line, bool parallel)
 {
     if (line.size() < 5)
     {
@@ -274,7 +274,7 @@ static void parseLine(Mesh &mesh, std::string_view line)
     }
     else if (line[0] == 'f' && is_space(line[1]))
     {
-        parseFace(mesh, line.substr(2));
+        parseFace(mesh, line.substr(2), parallel);
     }
 }
 
@@ -360,7 +360,7 @@ static void parseNormal(Mesh &mesh, std::string_view line)
     customPushBack(mesh.normals, n);
 }
 
-static void parseFace(Mesh &mesh, std::string_view line)
+static void parseFace(Mesh &mesh, std::string_view line, bool parallel)
 {
     Face f = {INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN};
 
@@ -385,7 +385,7 @@ static void parseFace(Mesh &mesh, std::string_view line)
         const char *slash1 = findChar(token_start, token_end, '/');
         const char *slash2 = slash1 ? findChar(slash1 + 1, token_end, '/') : nullptr;
 
-        int v_idx = parseIndex(token_start, slash1 ? slash1 : token_end);
+        int v_idx = parseIndex(token_start, slash1 ? slash1 : token_end, mesh, 0, parallel);
         int vt_idx = INT_MIN;
         int vn_idx = INT_MIN;
 
@@ -393,12 +393,12 @@ static void parseFace(Mesh &mesh, std::string_view line)
         {
             if (slash2)
             {
-                vt_idx = parseIndex(slash1 + 1, slash2);
-                vn_idx = parseIndex(slash2 + 1, token_end);
+                vt_idx = parseIndex(slash1 + 1, slash2, mesh, 1, parallel);
+                vn_idx = parseIndex(slash2 + 1, token_end, mesh, 2, parallel);
             }
             else
             {
-                vt_idx = parseIndex(slash1 + 1, token_end);
+                vt_idx = parseIndex(slash1 + 1, token_end, mesh, 1, parallel);
             }
         }
 
@@ -409,14 +409,41 @@ static void parseFace(Mesh &mesh, std::string_view line)
     customPushBack(mesh.faces, f);
 }
 
-static int parseIndex(const char *start, const char *end)
+static int parseIndex(const char *start, const char *end, Mesh &mesh, int state, bool parallel)
 {
     int idx = 0;
     if (toNumber(start, end, idx))
     {
-        return idx;
+        if (parallel)
+        {
+            // Resolving indices is handled later
+            return idx;
+        }
+        else
+        {
+            if (idx > 0)
+            {
+                return idx - 1;
+            }
+            else if (idx < 0)
+            {
+                if (state == 0)
+                {
+                    return idx + mesh.vertices.size();
+                }
+                else if (state == 1)
+                {
+                    return idx + mesh.textures.size();
+                }
+                else
+                {
+                    return idx + mesh.normals.size();
+                }
+            }
+            // 0 is not a valid index in obj files
+        }
     }
-    // Represent invalid indices with INT_MIN
+    // Represent invalid or empty indices with INT_MIN
     return INT_MIN;
 }
 
