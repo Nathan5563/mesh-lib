@@ -29,6 +29,7 @@ static void parseNormal(Mesh &mesh, std::string_view line);
 static void parseFace(Mesh &mesh, std::string_view line);
 static int parseIndex(const char *start, const char *end);
 static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx);
+static void resolveFace(Face &f, Mesh &mesh);
 inline bool is_space(char c)
 {
     return c == ' ' || c == '\t';
@@ -106,6 +107,12 @@ void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size
     {
         mergeMeshes(mesh, pm, mesh_mutex);
     }
+
+    // Resolve to positive 0-indexed
+    for (size_t i = 0; i < mesh.faces.size(); ++i)
+    {
+        resolveFace(mesh.faces[i], mesh);
+    }
 }
 
 void exportMeshToObj(const Mesh &mesh)
@@ -135,19 +142,19 @@ void exportMeshToObj(const Mesh &mesh)
     {
         std::cout << "f ";
         // vertex 1
-        std::cout << f.v1 << '/';
+        std::cout << f.v1 + 1 << '/';
         printIndex(f.vt1);
         std::cout << '/';
         printIndex(f.vn1);
         std::cout << ' ';
         // vertex 2
-        std::cout << f.v2 << '/';
+        std::cout << f.v2 + 1 << '/';
         printIndex(f.vt2);
         std::cout << '/';
         printIndex(f.vn2);
         std::cout << ' ';
         // vertex 3
-        std::cout << f.v3 << '/';
+        std::cout << f.v3 + 1 << '/';
         printIndex(f.vt3);
         std::cout << '/';
         printIndex(f.vn3);
@@ -491,4 +498,44 @@ static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx)
         f.vt3 = vt_idx;
         f.vn3 = vn_idx;
     }
+}
+
+static void resolveFace(Face &f, Mesh &mesh)
+{
+    if (f.v1 < 0)
+        f.v1 += mesh.vertices.size();
+    else
+        f.v1 -= 1;
+    if (f.v2 < 0)
+        f.v2 += mesh.vertices.size();
+    else
+        f.v2 -= 1;
+    if (f.v3 < 0)
+        f.v3 += mesh.vertices.size();
+    else
+        f.v3 -= 1;
+    if (f.vt1 < 0)
+        f.vt1 += mesh.textures.size();
+    else
+        f.vt1 -= 1;
+    if (f.vt2 < 0)
+        f.vt2 += mesh.textures.size();
+    else
+        f.vt2 -= 1;
+    if (f.vt3 < 0)
+        f.vt3 += mesh.textures.size();
+    else
+        f.vt3 -= 1;
+    if (f.vn1 < 0)
+        f.vn1 += mesh.normals.size();
+    else
+        f.vn1 -= 1;
+    if (f.vn2 < 0)
+        f.vn2 += mesh.normals.size();
+    else
+        f.vn2 -= 1;
+    if (f.vn3 < 0)
+        f.vn3 += mesh.normals.size();
+    else
+        f.vn3 -= 1;
 }

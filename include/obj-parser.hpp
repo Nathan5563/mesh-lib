@@ -1,5 +1,5 @@
-#ifndef __OBJ_PARSER_HPP__
-#define __OBJ_PARSER_HPP__
+#ifndef OBJ_PARSER_HPP
+#define OBJ_PARSER_HPP
 
 #include "../include/mesh.hpp"
 
@@ -27,4 +27,4 @@ void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size
 // Export data from the given mesh object in .obj format to stdout
 void exportMeshToObj(const Mesh &mesh);
 
-#endif // __OBJ_PARSER_HPP__
+#endif // OBJ_PARSER_HPP
