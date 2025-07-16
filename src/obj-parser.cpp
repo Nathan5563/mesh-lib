@@ -135,7 +135,7 @@ void exportMeshToObj(const Mesh &mesh)
         if (idx == INT_MIN)
             std::cout << "";
         else
-            std::cout << idx;
+            std::cout << idx + 1;
     };
 
     for (auto &f : mesh.faces)
