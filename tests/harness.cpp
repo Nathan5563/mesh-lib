@@ -15,8 +15,8 @@ int main(int argc, char* argv[])
 
     Mesh mesh;
 
-    // Try "mesh.fromObj" or "mesh.fromObjParallel"
-    mesh.fromObjParallel(path);
+    // Uses the parallel parser if the file is > 100M
+    mesh.fromObj(path);
     
     // Uncomment to export the mesh to stdout in obj format
     // mesh.toObj();
