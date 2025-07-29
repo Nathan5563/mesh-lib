@@ -48,7 +48,7 @@ struct Mesh
     void fromObj(const std::string &path);
 
     // Export the calling Mesh object in .obj format to stdout
-    void toObj() const;
+    void toObj(const std::string &path) const;
 };
 
 #endif // MESH_HPP

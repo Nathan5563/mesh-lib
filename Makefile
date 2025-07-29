@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -g3 -std=c++17 -Wall -Wextra -O3
+CXXFLAGS := -O3 -std=c++17 -Wall -Wextra
 
 # Sources for the library part
 SRCS := src/mesh.cpp src/obj-parser.cpp
@@ -23,7 +23,7 @@ obj/%.o: src/%.cpp
 # Compile and link test executable
 $(TEST_EXE): $(OBJS) $(TEST_SRC)
 	mkdir -p bin
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ -lfmt
 
 tinyobjloader-harness: tests/tiny_obj_loader.h tests/tinyobjloader-harness.cpp
 	$(CXX) $(CXXFLAGS) $^ -o bin/$@

@@ -25,6 +25,6 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size);
 void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size);
 
 // Export data from the given mesh object in .obj format to stdout
-void exportMeshToObj(const Mesh &mesh);
+void exportMeshToObj(const Mesh &mesh, int fd);
 
 #endif // OBJ_PARSER_HPP

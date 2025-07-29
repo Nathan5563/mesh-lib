@@ -68,7 +68,16 @@ void Mesh::fromObj(const std::string &path)
     munmap(data, file_size);
 }
 
-void Mesh::toObj() const
+void Mesh::toObj(const std::string &path) const
 {
-    exportMeshToObj(*this);
+    int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0666);
+    if (fd == -1)
+    {
+        perror("open");
+        return;
+    }
+
+    exportMeshToObj(*this, fd);
+
+    close(fd);
 }

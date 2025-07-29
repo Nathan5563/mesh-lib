@@ -134,3 +134,17 @@ Output of `perf report` for the Blender splash screen on the multi-threaded impl
 ```
 
 The added overhead for managing threads is only an issue for very small files. Even the smallest file tested (~35M) showed minor benefits with parallelism.
+
+===========================================================================
+
+// TODO: Clean up and format nicely into README
+
+FOR blendersplash.obj,
+- INITIAL WRITE TIME: 24s (using std::cout)
+- OPTIMIZED WRITE TIME: 11s (using fmt, reserved buffer, write syscall)
+
+Writes are still very slow compared to reads:
+- Single-threaded read: 4-5s
+- Single-threaded write: 10-12s
+- Multithreaded read: 2-3s
+- Multithreaded write: TODO

@@ -2,7 +2,12 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <chrono>
 
+#include <unistd.h>
+
+#include <fmt/core.h>
+#include <fmt/format.h>
 #include "../lib/fast_float/fast_float.h"
 
 #include "../include/obj-parser.hpp"
@@ -42,6 +47,12 @@ inline const char *findChar(const char *start, const char *end, char c)
             return ptr;
     }
     return nullptr;
+}
+inline std::string_view formatIndex(int idx, char* buf) {
+    if (idx == INT_MIN)
+        return std::string_view{};
+    auto end = fmt::format_to(buf, "{}", idx + 1);
+    return std::string_view(buf, end - buf);
 }
 
 // ---------------------------------------------------------------------------
@@ -115,51 +126,81 @@ void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size
     }
 }
 
-void exportMeshToObj(const Mesh &mesh)
+void exportMeshToObj(const Mesh &mesh, int fd)
 {
+    uint64_t reserve_size =
+        mesh.vertices.size() * 50 +
+        mesh.normals.size()  * 50 +
+        mesh.textures.size() * 35 +
+        mesh.faces.size()    * 120;
+    
+    fmt::memory_buffer buf;
+    buf.reserve(reserve_size);
+    auto out_it = std::back_inserter(buf);
+
+    // auto start_v = std::chrono::high_resolution_clock::now();    
     for (auto &v : mesh.vertices)
     {
-        std::cout << "v " << v.x << ' ' << v.y << ' ' << v.z << '\n';
+        fmt::format_to(out_it, "v {} {} {}\n", v.x, v.y, v.z);
     }
+    // auto end_v = std::chrono::high_resolution_clock::now();
+    // auto start_t = std::chrono::high_resolution_clock::now();    
     for (auto &t : mesh.textures)
     {
-        std::cout << "vt " << t.u << ' ' << t.v << '\n';
+        fmt::format_to(out_it, "vt {} {}\n", t.u, t.v);
     }
+    // auto end_t = std::chrono::high_resolution_clock::now();
+    // auto start_n = std::chrono::high_resolution_clock::now();    
     for (auto &n : mesh.normals)
     {
-        std::cout << "vn " << n.x << ' ' << n.y << ' ' << n.z << '\n';
+        fmt::format_to(out_it, "vn {} {} {}\n", n.x, n.y, n.z);
     }
-
-    auto printIndex = [](int idx)
+    // auto end_n = std::chrono::high_resolution_clock::now();
+    // auto start_f = std::chrono::high_resolution_clock::now();    
+    char buf_vt1[16], buf_vt2[16], buf_vt3[16];
+    char buf_vn1[16], buf_vn2[16], buf_vn3[16];
+    for (auto &f : mesh.faces) 
     {
-        if (idx == INT_MIN)
-            std::cout << "";
-        else
-            std::cout << idx + 1;
-    };
-
-    for (auto &f : mesh.faces)
-    {
-        std::cout << "f ";
-        // vertex 1
-        std::cout << f.v1 + 1 << '/';
-        printIndex(f.vt1);
-        std::cout << '/';
-        printIndex(f.vn1);
-        std::cout << ' ';
-        // vertex 2
-        std::cout << f.v2 + 1 << '/';
-        printIndex(f.vt2);
-        std::cout << '/';
-        printIndex(f.vn2);
-        std::cout << ' ';
-        // vertex 3
-        std::cout << f.v3 + 1 << '/';
-        printIndex(f.vt3);
-        std::cout << '/';
-        printIndex(f.vn3);
-        std::cout << '\n';
+        fmt::format_to(out_it,
+            "f {}/{}/{} {}/{}/{} {}/{}/{}\n",
+            f.v1 + 1,
+            formatIndex(f.vt1, buf_vt1),
+            formatIndex(f.vn1, buf_vn1),
+            f.v2 + 1,
+            formatIndex(f.vt2, buf_vt2),
+            formatIndex(f.vn2, buf_vn2),
+            f.v3 + 1,
+            formatIndex(f.vt3, buf_vt3),
+            formatIndex(f.vn3, buf_vn3));
     }
+    // auto end_f = std::chrono::high_resolution_clock::now();
+    // auto start_w = std::chrono::high_resolution_clock::now();
+    const char *data = buf.data();
+    int64_t size = buf.size();
+    int64_t written = 0;
+    while (written < size)
+    {
+        ssize_t nbytes = write(fd, data + written, size - written);
+        if (written == -1)
+        {
+            perror("write");
+            break;
+        }
+        written += nbytes;
+    }
+    // auto end_w = std::chrono::high_resolution_clock::now();
+
+    // auto v_time = std::chrono::duration_cast<std::chrono::microseconds>(end_v - start_v).count();
+    // auto t_time = std::chrono::duration_cast<std::chrono::microseconds>(end_t - start_t).count();
+    // auto n_time = std::chrono::duration_cast<std::chrono::microseconds>(end_n - start_n).count();
+    // auto f_time = std::chrono::duration_cast<std::chrono::microseconds>(end_f - start_f).count();
+    // auto w_time = std::chrono::duration_cast<std::chrono::microseconds>(end_w - start_w).count();
+
+    // std::cerr << "Vertex time: " << v_time << std::endl;
+    // std::cerr << "Texture time: " << t_time << std::endl;
+    // std::cerr << "Normal time: " << n_time << std::endl;
+    // std::cerr << "Face time: " << f_time << std::endl;
+    // std::cerr << "Write time: " << w_time << std::endl;
 }
 
 // ---------------------------------------------------------------------------
