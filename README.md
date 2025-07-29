@@ -140,8 +140,8 @@ The added overhead for managing threads is only an issue for very small files. E
 // TODO: Clean up and format nicely into README
 
 For blendersplash.obj,
-- INITIAL WRITE TIME: 24s (using std::cout)
-- OPTIMIZED WRITE TIME: 11s (using fmt, reserved buffer, write syscall)
+- Initial write time: 24s (using std::cout)
+- Optimized write time: 11s (using fmt, reserved buffer, write syscall)
 
 Writes are still very slow compared to reads:
 - Single-threaded read: 4-5s
