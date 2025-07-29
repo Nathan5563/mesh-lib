@@ -1,5 +1,7 @@
 # mesh-lib
 
+## WARNING: THIS BRANCH IS OUT OF DATE AND DOESN'T IMPLEMENT NEW FEATURES AND OPTIMIZATIONS FOUND IN `main`.
+
 ### Requirements
 - Linux environment
 - C++ compiler installed (`g++`)
