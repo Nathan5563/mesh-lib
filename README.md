@@ -3,9 +3,9 @@
 ## Requirements
 
 - Linux environment
-- C++ compiler (`g++`)
-- Make
+- GCC
 - libfmt-dev
+- Make
 
 ## Installation
 
@@ -117,3 +117,4 @@ Because testing like this is non-deterministic, the following results are approx
 <img src="https://casual-effects.com/g3d/data10/research/model/bunny/icon.png" alt="Stanford Bunny graphics model" /> <img src="https://casual-effects.com/g3d/data10/research/model/dragon/icon.png" alt="Chinese Dragon graphics model" /> <img src="https://casual-effects.com/g3d/data10/research/model/rungholt/icon.png" alt="Rungholt Minecraft map" /> <img src="https://github.com/user-attachments/assets/2d5aaad9-80eb-4e7b-bf6d-ca91e7e2e68b" alt="Blender 3.0 splash screen" width="300px" />
 
 // TODO: INSERT GRAPHS HERE
+
