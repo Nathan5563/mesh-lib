@@ -2,7 +2,6 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <chrono>
 
 #include <unistd.h>
 
@@ -21,7 +20,7 @@ struct Chunk
 };
 
 // ---------------------------------------------------------------------------
-//   Forward Declarations and Inline Functions
+//   Function Declarations and Inline Functions
 // ---------------------------------------------------------------------------
 
 static void parseChunk(const char *start, const char *end, Mesh &out);
@@ -41,12 +40,16 @@ inline bool is_space(char c)
 }
 inline const char *findChar(const char *start, const char *end, char c)
 {
-    for (const char *ptr = start; ptr < end; ++ptr)
+    std::string_view sv(start, end - start);
+    auto pos = sv.find(c);
+    if (pos != std::string_view::npos)
     {
-        if (*ptr == c)
-            return ptr;
+        return start + pos;
     }
-    return nullptr;
+    else
+    {
+        return nullptr;
+    }
 }
 inline std::string_view formatIndex(int idx, char* buf) {
     if (idx == INT_MIN)
@@ -59,28 +62,27 @@ inline std::string_view formatIndex(int idx, char* buf) {
 //   Core API
 // ---------------------------------------------------------------------------
 
-void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
+void importMeshFromObj(Mesh &mesh, const char *obj_file, size_t file_size)
 {
     size_t pos = 0;
     size_t line_end = 0;
     std::string_view line;
-    while (pos < static_cast<size_t>(file_size))
+    while (pos < file_size)
     {
         const char *start = obj_file + pos;
         const char *end = obj_file + file_size;
         const char *newline = static_cast<const char *>(findChar(start, end, '\n'));
 
-        // Get a view of the current line
+        // Get the current line
         line_end = newline ? (newline - obj_file) : file_size;
         line = std::string_view(obj_file + pos, line_end - pos);
 
         // Setup the next line before parsing to avoid infinite loops on `continue`
         pos = newline ? line_end + 1 : file_size;
 
-        // Pass leading whitespace
+        // Skip leading whitespace
         size_t i = 0;
-        for (; i < line.size() && is_space(line[i]); ++i)
-            ;
+        for (; i < line.size() && is_space(line[i]); ++i);
 
         // Skip comments and empty lines
         if (i >= line.size() || line[i] == '#')
@@ -90,11 +92,15 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size)
     }
 }
 
-void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size)
+void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, size_t file_size)
 {
     size_t num_threads = std::thread::hardware_concurrency();
     if (num_threads == 0)
-        num_threads = 4;
+    {
+        std::cout << "Insufficient thread count, switching to sequential parser...\n";
+        importMeshFromObj(mesh, obj_file, file_size);
+        return;
+    }
 
     auto chunks = splitFileIntoChunks(obj_file, file_size, num_threads);
 
@@ -105,8 +111,9 @@ void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size
     // Parse a chunk in each thread
     for (size_t i = 0; i < num_threads; ++i)
     {
-        workers.emplace_back([&, i]()
-                             { parseChunk(chunks[i].start, chunks[i].end, partial_meshes[i]); });
+        workers.emplace_back([&, i](){ 
+            parseChunk(chunks[i].start, chunks[i].end, partial_meshes[i]); 
+        });
     }
 
     // Wait for all threads
@@ -138,25 +145,21 @@ void exportMeshToObj(const Mesh &mesh, int fd)
     buf.reserve(reserve_size);
     auto out_it = std::back_inserter(buf);
 
-    // auto start_v = std::chrono::high_resolution_clock::now();    
     for (auto &v : mesh.vertices)
     {
         fmt::format_to(out_it, "v {} {} {}\n", v.x, v.y, v.z);
     }
-    // auto end_v = std::chrono::high_resolution_clock::now();
-    // auto start_t = std::chrono::high_resolution_clock::now();    
+    
     for (auto &t : mesh.textures)
     {
         fmt::format_to(out_it, "vt {} {}\n", t.u, t.v);
     }
-    // auto end_t = std::chrono::high_resolution_clock::now();
-    // auto start_n = std::chrono::high_resolution_clock::now();    
+ 
     for (auto &n : mesh.normals)
     {
         fmt::format_to(out_it, "vn {} {} {}\n", n.x, n.y, n.z);
     }
-    // auto end_n = std::chrono::high_resolution_clock::now();
-    // auto start_f = std::chrono::high_resolution_clock::now();    
+
     char buf_vt1[16], buf_vt2[16], buf_vt3[16];
     char buf_vn1[16], buf_vn2[16], buf_vn3[16];
     for (auto &f : mesh.faces) 
@@ -173,8 +176,7 @@ void exportMeshToObj(const Mesh &mesh, int fd)
             formatIndex(f.vt3, buf_vt3),
             formatIndex(f.vn3, buf_vn3));
     }
-    // auto end_f = std::chrono::high_resolution_clock::now();
-    // auto start_w = std::chrono::high_resolution_clock::now();
+
     const char *data = buf.data();
     int64_t size = buf.size();
     int64_t written = 0;
@@ -188,19 +190,6 @@ void exportMeshToObj(const Mesh &mesh, int fd)
         }
         written += nbytes;
     }
-    // auto end_w = std::chrono::high_resolution_clock::now();
-
-    // auto v_time = std::chrono::duration_cast<std::chrono::microseconds>(end_v - start_v).count();
-    // auto t_time = std::chrono::duration_cast<std::chrono::microseconds>(end_t - start_t).count();
-    // auto n_time = std::chrono::duration_cast<std::chrono::microseconds>(end_n - start_n).count();
-    // auto f_time = std::chrono::duration_cast<std::chrono::microseconds>(end_f - start_f).count();
-    // auto w_time = std::chrono::duration_cast<std::chrono::microseconds>(end_w - start_w).count();
-
-    // std::cerr << "Vertex time: " << v_time << std::endl;
-    // std::cerr << "Texture time: " << t_time << std::endl;
-    // std::cerr << "Normal time: " << n_time << std::endl;
-    // std::cerr << "Face time: " << f_time << std::endl;
-    // std::cerr << "Write time: " << w_time << std::endl;
 }
 
 // ---------------------------------------------------------------------------
@@ -514,10 +503,17 @@ static std::vector<Chunk> splitFileIntoChunks(const char *file, size_t file_size
             if (possible_end >= file_end)
                 possible_end = file_end;
 
-            // Break chunks in reasonable places (i.e., don't separate one line across threads)
-            const char *newline_ptr = possible_end;
-            while (newline_ptr < file_end && *newline_ptr != '\n')
-                ++newline_ptr;
+            // Break chunks in reasonable places (e.g., don't separate one line across threads)
+            const char *newline_ptr;
+            const char *ptr = findChar(possible_end, file_end, '\n');
+            if (ptr)
+            {
+                newline_ptr = ptr;
+            }
+            else
+            {
+                newline_ptr = file_end;
+            }
 
             // Include the newline in the chunk
             if (newline_ptr < file_end)

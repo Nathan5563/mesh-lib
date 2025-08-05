@@ -28,6 +28,7 @@ void Mesh::fromObj(const std::string &path)
         perror("open");
         return;
     }
+
     struct stat st;
     if (fstat(fd, &st) == -1)
     {
@@ -35,26 +36,29 @@ void Mesh::fromObj(const std::string &path)
         close(fd);
         return;
     }
-    off_t file_size = st.st_size;
+
+    size_t file_size = static_cast<size_t>(st.st_size);
     if (file_size == 0)
     {
         std::cerr << "File size is zero" << std::endl;
         close(fd);
         return;
     }
-    char *data = static_cast<char *>(mmap(nullptr, file_size, PROT_READ, MAP_POPULATE | MAP_PRIVATE, fd, 0));
-    if (data == MAP_FAILED)
+
+    char *obj_file = static_cast<char *>(
+        mmap(nullptr, file_size, PROT_READ, MAP_POPULATE | MAP_PRIVATE, fd, 0)
+    );
+    if (obj_file == MAP_FAILED)
     {
         perror("mmap");
         close(fd);
         return;
     }
     close(fd);
-    const char *__restrict obj_file = static_cast<const char *>(__builtin_assume_aligned(data, 64));
 
     this->clear();
 
-    if (file_size < 100 * 1024 * 1024)
+    if (file_size < MIN_SIZE_FOR_PARALLEL)
     {
         std::cout << "File size less than 100M, using sequential parser..." << std::endl;
         importMeshFromObj(*this, obj_file, file_size);
@@ -65,7 +69,7 @@ void Mesh::fromObj(const std::string &path)
         importMeshFromObjParallel(*this, obj_file, file_size);
     }    
 
-    munmap(data, file_size);
+    munmap(obj_file, file_size);
 }
 
 void Mesh::toObj(const std::string &path) const

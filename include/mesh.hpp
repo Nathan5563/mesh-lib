@@ -43,8 +43,6 @@ struct Mesh
     void clear();
 
     // Replace the calling Mesh object's data with data from a .obj file
-    // Uses threads to parallelize parsing for larger files
-    // Inspired by modern CPU architecture (out-of-order execution + in-order commit)
     void fromObj(const std::string &path);
 
     // Export the calling Mesh object in .obj format to stdout

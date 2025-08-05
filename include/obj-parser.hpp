@@ -3,28 +3,22 @@
 
 #include "../include/mesh.hpp"
 
-// Import data from the given .obj file into the given mesh object
-//
-// WARNING: .obj specifications are not closely adhered to.
-//
-// This parser supports only vertices (v) and faces (f).
-// Each line must be one of the following:
-//   - A comment starting with '#'
-//   - A vertex starting with 'v'
-//   - A face starting with 'f'
-// Leading whitespace is not allowed.
-// Only position information is taken from the faces, i.e.,
-//   f 5/2/1 -2/0/0 3/1/0
-// will only use the vertex indices
-//   f 5 -2 3
-//
-// WARNING: this parser assumes the given .obj file is syntactically correct.
-void importMeshFromObj(Mesh &mesh, const char *obj_file, off_t file_size);
+constexpr size_t MIN_SIZE_FOR_PARALLEL = 1 * 1024 * 1024;
 
-// Uses threads to parallelize parsing, but otherwise identical to the above
-void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, off_t file_size);
+// Import data from the given .obj data into the given mesh object
+//
+// WARNING: .obj specifications are not perfectly adhered to. This
+// parser assumes the given file is syntactically correct.
+//
+// This parser supports vertices (v), vertex textures (vt), vertex 
+// normals (vn), and faces (f).
+void importMeshFromObj(Mesh &mesh, const char *obj_file, size_t file_size);
 
-// Export data from the given mesh object in .obj format to stdout
+// Uses threads to parallelize parsing, but otherwise identical to above
+void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, size_t file_size);
+
+// Export data from the given mesh object in .obj format to the file specified
+// by the given file descriptor
 void exportMeshToObj(const Mesh &mesh, int fd);
 
 #endif // OBJ_PARSER_HPP
