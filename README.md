@@ -88,7 +88,7 @@ Output of `perf record` for a 2.5GB file on the single-threaded implementation:
      0.01%  harness  ld-linux-x86-64.so.2  [.] do_lookup_x
 ```
 
-Output of `perf report` for the same file on the multi-threaded implementation:
+Output of `perf record` for the same file on the multi-threaded implementation:
 
 ```bash
 # Total Lost Samples: 0
@@ -135,4 +135,5 @@ And yielded the following results:
 See the following per-file data for more detailed times, including a breakdown of time spent in user space vs kernel space:
 
 <img src="data/time/graphs/bunny_performance.png" alt="Bunny model performance graph" width="400px" /> <img src="data/time/graphs/dragon_performance.png" alt="Dragon model performance graph" width="400px" /> <img src="data/time/graphs/rungholt_performance.png" alt="Rungholt model performance graph" width="400px" /> <img src="data/time/graphs/blendersplash_performance.png" alt="Blendersplash model performance graph" width="400px" />
+
 
