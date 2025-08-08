@@ -132,7 +132,7 @@ And yielded the following results:
 
 <img src="data/time/graphs/summary_performance.png" alt="Real time performance graph" width="804px" />
 
-See the following per-file data for more detailed times, including a breakdown of time spent in user space vs kernel space:
+See the following per-file data for more detailed times, including a breakdown of time spent in user space vs kernel space (click image to expand):
 
 <img src="data/time/graphs/bunny_performance.png" alt="Bunny model performance graph" width="400px" /> <img src="data/time/graphs/dragon_performance.png" alt="Dragon model performance graph" width="400px" /> <img src="data/time/graphs/rungholt_performance.png" alt="Rungholt model performance graph" width="400px" /> <img src="data/time/graphs/blendersplash_performance.png" alt="Blendersplash model performance graph" width="400px" />
 
