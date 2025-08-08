@@ -10,7 +10,6 @@
 ## Installation
 
 1. Clone the repository:
-
    ```bash
    git clone <repository-url>
    cd mesh-lib
@@ -23,11 +22,18 @@
 
 ## Usage
 
-Run the harness program with the path to your obj file:
+1. Store any obj files you want to test in `data/input/`.
+2. Time the parsers (do multiple runs for better accuracy):
+   ```bash
+   ./data/time/timeit.sh
+   ```
 
-```bash
-./bin/harness <path-to-obj-file>
-```
+3. Graph the results:
+   ```bash
+   python3 data/time/graphit.py
+   ```
+
+The resulting data will then be stored in `data/time/graphs/`.
 
 ## Mesh Data Structure
 
@@ -122,13 +128,14 @@ Because testing like this is non-deterministic, the following results are approx
 
 <img src="https://casual-effects.com/g3d/data10/research/model/bunny/icon.png" alt="Stanford Bunny graphics model" /> <img src="https://casual-effects.com/g3d/data10/research/model/dragon/icon.png" alt="Chinese Dragon graphics model" /> <img src="https://casual-effects.com/g3d/data10/research/model/rungholt/icon.png" alt="Rungholt Minecraft map" /> <img src="https://github.com/user-attachments/assets/2d5aaad9-80eb-4e7b-bf6d-ca91e7e2e68b" alt="Blender 3.0 splash screen" width="300px" />
 
-And yielded the following data:
+And yielded the following results:
 
-![Stanford Bunny Performance](data/time/graphs/bunny_performance.png)
+<img src="data/time/graphs/bunny_performance.png" alt="Bunny model performance graph" width="700px" />
 
-![Chinese Dragon Performance](data/time/graphs/dragon_performance.png)
+<img src="data/time/graphs/dragon_performance.png" alt="Dragon model performance graph" width="700px" />
 
-![Rungholt Performance](data/time/graphs/rungholt_performance.png)
+<img src="data/time/graphs/rungholt_performance.png" alt="Rungholt model performance graph" width="700px" />
 
-![Blender Splash Performance](data/time/graphs/blendersplash_performance.png)
+<img src="data/time/graphs/blendersplash_performance.png" alt="Blendersplash model performance graph" width="700px" />
+
 
