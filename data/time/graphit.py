@@ -14,6 +14,20 @@ import seaborn as sns
 from pathlib import Path
 import numpy as np # Added for np.arange
 
+def get_file_sizes():
+    """Get file sizes for the input files."""
+    input_dir = Path("data/input")
+    file_sizes = {}
+    
+    if input_dir.exists():
+        for obj_file in input_dir.glob("*.obj"):
+            size_bytes = obj_file.stat().st_size
+            # Convert to MB for readability
+            size_mb = size_bytes / (1024 * 1024)
+            file_sizes[obj_file.stem] = size_mb
+    
+    return file_sizes
+
 def read_timing_data():
     """Read all timing data from the time subdirectories."""
     data = {}
@@ -192,8 +206,85 @@ def create_performance_graphs(data):
         
         plt.close()
 
-
-
+def create_summary_line_graph(data, file_sizes):
+    """Create a summary line graph comparing parsers across file sizes."""
+    if not data:
+        print("No data found to graph!")
+        return
+    
+    # Set up plotting style
+    plt.style.use('default')
+    sns.set_theme(style="whitegrid")
+    
+    # Create output directory for graphs
+    output_dir = Path("data/time/graphs")
+    output_dir.mkdir(exist_ok=True)
+    
+    # Prepare data for plotting
+    file_names = sorted(data.keys(), key=lambda x: file_sizes.get(x, 0))
+    parsers = set()
+    for file_data in data.values():
+        parsers.update(file_data.keys())
+    parsers = sorted(list(parsers))
+    
+    # Color palette
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f']
+    parser_colors = dict(zip(parsers, colors[:len(parsers)]))
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Plot line for each parser
+    for parser in parsers:
+        x_values = []
+        y_values = []
+        
+        for file_name in file_names:
+            if parser in data[file_name]:
+                x_values.append(file_sizes.get(file_name, 0))
+                y_values.append(data[file_name][parser]['real'])
+        
+        if x_values and y_values:
+            ax.plot(x_values, y_values, 
+                   marker='o', linewidth=3, markersize=8,
+                   color=parser_colors[parser], label=parser, alpha=0.9)
+    
+    # Set x-axis to logarithmic scale
+    ax.set_xscale('log')
+    
+    # Styling
+    ax.set_title('Real Time Performance Comparison', fontsize=20, fontweight='bold', color='#2C3E50', pad=20)
+    ax.set_xlabel('File Size (MB)', fontsize=14, fontweight='bold', color='#2C3E50')
+    ax.set_ylabel('Real Time (seconds)', fontsize=14, fontweight='bold', color='#2C3E50')
+    
+    # Grid and styling
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=1)
+    ax.set_facecolor('#F8F9FA')
+    
+    # Legend
+    legend = ax.legend(loc='upper left', frameon=True, fancybox=True,
+                      shadow=True, fontsize=12)
+    legend.get_frame().set_facecolor('white')
+    legend.get_frame().set_alpha(0.9)
+    
+    # Add subtle border
+    for spine in ax.spines.values():
+        spine.set_color('#E9ECEF')
+        spine.set_linewidth(1.5)
+    
+    # Set background color
+    fig.patch.set_facecolor('white')
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Save the graph
+    graph_file = output_dir / "summary_performance.png"
+    plt.savefig(graph_file, dpi=300, bbox_inches='tight', 
+               facecolor='white', edgecolor='none')
+    print(f"Saved summary graph: {graph_file}")
+    
+    plt.close()
 
 
 def main():
@@ -214,8 +305,12 @@ def main():
     
     print("\nGenerating graphs...")
     
-    # Create graphs
+    # Create individual graphs
     create_performance_graphs(data)
+    
+    # Create summary line graph
+    file_sizes = get_file_sizes()
+    create_summary_line_graph(data, file_sizes)
     
     print("\nGraph generation completed!")
     print("Check the 'data/time/graphs/' directory for output files.")
