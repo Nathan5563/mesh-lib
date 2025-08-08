@@ -117,7 +117,7 @@ These tests were run on a device with the following specifications:
 
 - CPU: Intel Core Ultra 9 185H, 16 cores, 22 threads
 - RAM: 32GB, 7467 MT/s
-- SSD: 5527 MB/s for sequential reads, 2208 MB/s for sequential writes
+- SSD: 5527 MB/s for 1MiB sequential reads, 2208 MB/s for 1MiB sequential writes
 
 Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by "warming up" memory by doing a few parse rounds before starting the tests, averaging 20+ runs per test, and rejecting outliers via median absolute deviation. All parsers were tested on the following images:
 
@@ -135,3 +135,4 @@ And yielded the following results:
 See the following per-file data for more detailed times, including a breakdown of time spent in user space vs kernel space:
 
 <img src="data/time/graphs/bunny_performance.png" alt="Bunny model performance graph" width="400px" /> <img src="data/time/graphs/dragon_performance.png" alt="Dragon model performance graph" width="400px" /> <img src="data/time/graphs/rungholt_performance.png" alt="Rungholt model performance graph" width="400px" /> <img src="data/time/graphs/blendersplash_performance.png" alt="Blendersplash model performance graph" width="400px" />
+
