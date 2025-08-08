@@ -2,7 +2,7 @@
 #include <string>
 #include <chrono>
 
-#include "../include/mesh.hpp"
+#include "../../include/mesh.hpp"
 
 int main(int argc, char* argv[])
 {

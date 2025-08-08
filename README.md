@@ -48,7 +48,7 @@ Both `vertices` and `faces` are 0-indexed, so the obj input and output correctly
 
 ## Performance Analysis
 
-Initial analysis was done using the Linux `time` tool. The test harness loads the obj file into whatever data structure is used to represent the mesh, then returns after freeing memory. Optimizations were chosen based on performance analysis from the following tools:
+Analysis and comparisons were done using the Linux `/usr/bin/time` tool. The test harness loads the obj file into whatever data structure is used to represent the mesh, then returns after freeing memory. Optimizations were chosen based on performance analysis from the following tools:
 
 - `perf stat`
 - `perf record` with `perf report` TUI
@@ -107,7 +107,13 @@ This shows that the bottleneck is still the expensive string-to-float conversion
 
 ## Comparison with other parsers
 
-Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by averaging 8 runs per test. All parsers were tested on the following images:
+These tests were run on a device with the following specifications:
+
+- CPU: Intel Core Ultra 9 185H, 16 cores, 22 threads
+- RAM: 32GB, 7467 MT/s
+- SSD: 5527 MB/s for sequential reads, 2208 MB/s for sequential writes
+
+Because testing like this is non-deterministic, the following results are approximations that try to reduce noise by "warming up" memory by doing a few parse rounds before starting the tests, averaging 20+ runs per test, and rejecting outliers via median absolute deviation. All parsers were tested on the following images:
 
 - Stanford Bunny model ([source](https://casual-effects.com/data/), 10MB file, 72K vertices, 144K faces, triangulated)
 - Chinese Dragon model ([source](https://casual-effects.com/data/), 72MB file, 439K vertices, 871K faces, triangulated)
@@ -116,5 +122,13 @@ Because testing like this is non-deterministic, the following results are approx
 
 <img src="https://casual-effects.com/g3d/data10/research/model/bunny/icon.png" alt="Stanford Bunny graphics model" /> <img src="https://casual-effects.com/g3d/data10/research/model/dragon/icon.png" alt="Chinese Dragon graphics model" /> <img src="https://casual-effects.com/g3d/data10/research/model/rungholt/icon.png" alt="Rungholt Minecraft map" /> <img src="https://github.com/user-attachments/assets/2d5aaad9-80eb-4e7b-bf6d-ca91e7e2e68b" alt="Blender 3.0 splash screen" width="300px" />
 
-// TODO: INSERT GRAPHS HERE
+And yielded the following data:
+
+![Stanford Bunny Performance](data/time/graphs/bunny_performance.png)
+
+![Chinese Dragon Performance](data/time/graphs/dragon_performance.png)
+
+![Rungholt Performance](data/time/graphs/rungholt_performance.png)
+
+![Blender Splash Performance](data/time/graphs/blendersplash_performance.png)
 

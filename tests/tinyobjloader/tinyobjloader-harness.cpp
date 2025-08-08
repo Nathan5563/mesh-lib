@@ -28,5 +28,12 @@ int main(int argc, char* argv[])
         nullptr,
         false
     );
+
+    if (err.empty() == false)
+    {
+        std::cerr << "Error parsing file: " << err << std::endl;
+        return 1;
+    }
+
     return 0;
 }

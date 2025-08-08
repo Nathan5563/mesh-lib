@@ -60,12 +60,12 @@ void Mesh::fromObj(const std::string &path)
 
     if (file_size < MIN_SIZE_FOR_PARALLEL)
     {
-        std::cout << "File size less than 100M, using sequential parser..." << std::endl;
+        // std::cout << "File size less than 100M, using sequential parser..." << std::endl;
         importMeshFromObj(*this, obj_file, file_size);
     }
     else
     {
-        std::cout << "File size greater than 100M, using parallel parser..." << std::endl;
+        // std::cout << "File size greater than 100M, using parallel parser..." << std::endl;
         importMeshFromObjParallel(*this, obj_file, file_size);
     }    
 
