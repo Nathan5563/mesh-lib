@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -32,7 +33,6 @@ static void parseTexture(Mesh &mesh, std::string_view line);
 static void parseNormal(Mesh &mesh, std::string_view line);
 static void parseFace(Mesh &mesh, std::string_view line, bool parallel);
 static int parseIndex(const char *start, const char *end, Mesh &mesh, int state, bool parallel);
-static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx);
 static void resolveFace(Face &f, Mesh &mesh);
 inline bool is_space(char c)
 {
@@ -73,7 +73,7 @@ void importMeshFromObj(Mesh &mesh, const char *obj_file, size_t file_size)
         const char *end = obj_file + file_size;
         const char *newline = static_cast<const char *>(findChar(start, end, '\n'));
 
-        // Get the current line
+        // Get a view of the current line
         line_end = newline ? (newline - obj_file) : file_size;
         line = std::string_view(obj_file + pos, line_end - pos);
 
@@ -135,55 +135,66 @@ void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, size_t file_siz
 
 void exportMeshToObj(const Mesh &mesh, int fd)
 {
-    uint64_t reserve_size =
-        mesh.vertices.size() * 50 +
-        mesh.normals.size()  * 50 +
-        mesh.textures.size() * 35 +
-        mesh.faces.size()    * 120;
-    
     fmt::memory_buffer buf;
+    uint64_t reserve_size =
+            mesh.vertices.size() * 50 +
+            mesh.normals.size()  * 50 +
+            mesh.textures.size() * 35 +
+            mesh.faces.size()    * 120;
     buf.reserve(reserve_size);
     auto out_it = std::back_inserter(buf);
 
+    // Write vertices
     for (auto &v : mesh.vertices)
     {
         fmt::format_to(out_it, "v {} {} {}\n", v.x, v.y, v.z);
     }
-    
+
+    // Write textures
     for (auto &t : mesh.textures)
     {
         fmt::format_to(out_it, "vt {} {}\n", t.u, t.v);
     }
- 
+
+    // Write normals
     for (auto &n : mesh.normals)
     {
         fmt::format_to(out_it, "vn {} {} {}\n", n.x, n.y, n.z);
     }
 
-    char buf_vt1[16], buf_vt2[16], buf_vt3[16];
-    char buf_vn1[16], buf_vn2[16], buf_vn3[16];
-    for (auto &f : mesh.faces) 
+    // Write faces
+    for (auto &f : mesh.faces)
     {
-        fmt::format_to(out_it,
-            "f {}/{}/{} {}/{}/{} {}/{}/{}\n",
-            f.v1 + 1,
-            formatIndex(f.vt1, buf_vt1),
-            formatIndex(f.vn1, buf_vn1),
-            f.v2 + 1,
-            formatIndex(f.vt2, buf_vt2),
-            formatIndex(f.vn2, buf_vn2),
-            f.v3 + 1,
-            formatIndex(f.vt3, buf_vt3),
-            formatIndex(f.vn3, buf_vn3));
+        fmt::format_to(out_it, "f");
+
+        for (size_t i = 0; i < f.v.len; ++i)
+        {
+            int64_t v_idx  = mesh.vertex_indices[f.v.start + i] + 1; // OBJ is 1-based
+            int64_t vt_idx = (f.vt.len > 0) ? mesh.texture_indices[f.vt.start + i] + 1 : 0;
+            int64_t vn_idx = (f.vn.len > 0) ? mesh.normal_indices[f.vn.start + i] + 1 : 0;
+
+            fmt::format_to(out_it, " {}", v_idx);
+
+            if (f.vt.len > 0 || f.vn.len > 0)
+            {
+                fmt::format_to(out_it, "/");
+                if (f.vt.len > 0)
+                    fmt::format_to(out_it, "{}", vt_idx);
+                if (f.vn.len > 0)
+                    fmt::format_to(out_it, "/{}", vn_idx);
+            }
+        }
+        fmt::format_to(out_it, "\n");
     }
 
+    // Write buffer to file descriptor
     const char *data = buf.data();
     int64_t size = buf.size();
     int64_t written = 0;
     while (written < size)
     {
         ssize_t nbytes = write(fd, data + written, size - written);
-        if (written == -1)
+        if (nbytes == -1)
         {
             perror("write");
             break;
@@ -392,26 +403,32 @@ static void parseNormal(Mesh &mesh, std::string_view line)
 
 static void parseFace(Mesh &mesh, std::string_view line, bool parallel)
 {
-    Face f = {INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN};
+    Face f;
+
+    // Record starting positions
+    f.v.start = mesh.vertex_indices.size();
+    f.vt.start = mesh.texture_indices.size();
+    f.vn.start = mesh.normal_indices.size();
+
+    f.v.len = 0;
+    f.vt.len = 0;
+    f.vn.len = 0;
 
     const char *ptr = line.data();
     const char *end = ptr + line.size();
 
-    int state = 0;
-
-    while (ptr < end && state < 3)
+    while (ptr < end)
     {
         // Skip whitespace
-        while (ptr < end && is_space(*ptr))
-            ++ptr;
+        while (ptr < end && is_space(*ptr)) ++ptr;
+        if (ptr >= end) break;
 
-        // Find end of token
         const char *token_start = ptr;
-        while (ptr < end && !is_space(*ptr))
-            ++ptr;
+        while (ptr < end && !is_space(*ptr)) ++ptr;
         const char *token_end = ptr;
+        if (token_start == token_end) continue; // skip empty tokens
 
-        // Split token into v/vt/vn
+        // Parse v/vt/vn
         const char *slash1 = findChar(token_start, token_end, '/');
         const char *slash2 = slash1 ? findChar(slash1 + 1, token_end, '/') : nullptr;
 
@@ -419,24 +436,20 @@ static void parseFace(Mesh &mesh, std::string_view line, bool parallel)
         int vt_idx = INT_MIN;
         int vn_idx = INT_MIN;
 
-        if (slash1 && slash1 + 1 < token_end)
-        {
-            if (slash2)
-            {
+        if (slash1 && slash1 + 1 < token_end) {
+            if (slash2) {
                 vt_idx = parseIndex(slash1 + 1, slash2, mesh, 1, parallel);
                 vn_idx = parseIndex(slash2 + 1, token_end, mesh, 2, parallel);
-            }
-            else
-            {
+            } else {
                 vt_idx = parseIndex(slash1 + 1, token_end, mesh, 1, parallel);
             }
         }
 
-        updateFace(f, state, v_idx, vt_idx, vn_idx);
-        ++state;
+        if (v_idx != INT_MIN) { mesh.vertex_indices.push_back(v_idx); ++f.v.len; }
+        if (vt_idx != INT_MIN) { mesh.texture_indices.push_back(vt_idx); ++f.vt.len; }
+        if (vn_idx != INT_MIN) { mesh.normal_indices.push_back(vn_idx); ++f.vn.len; }
     }
-
-    customPushBack(mesh.faces, f);
+    mesh.faces.push_back(f);
 }
 
 static int parseIndex(const char *start, const char *end, Mesh &mesh, int state, bool parallel)
@@ -522,7 +535,7 @@ static std::vector<Chunk> splitFileIntoChunks(const char *file, size_t file_size
             chunk_end = newline_ptr;
         }
 
-        chunks.push_back({chunk_start, chunk_end});
+        customPushBack(chunks, {chunk_start, chunk_end});
         chunk_start = chunk_end;
     }
 
@@ -538,68 +551,56 @@ static void mergeMeshes(Mesh &main_mesh, const Mesh &partial_mesh, std::mutex &m
     main_mesh.textures.insert(main_mesh.textures.end(), partial_mesh.textures.begin(), partial_mesh.textures.end());
     main_mesh.normals.insert(main_mesh.normals.end(), partial_mesh.normals.begin(), partial_mesh.normals.end());
 
-    // Append faces WITHOUT modifying their indices
-    main_mesh.faces.insert(main_mesh.faces.end(), partial_mesh.faces.begin(), partial_mesh.faces.end());
-}
+    // Record old index vector sizes
+    size_t v_offset  = main_mesh.vertex_indices.size();
+    size_t vt_offset = main_mesh.texture_indices.size();
+    size_t vn_offset = main_mesh.normal_indices.size();
 
-static void updateFace(Face &f, size_t state, int v_idx, int vt_idx, int vn_idx)
-{
-    if (state == 0)
+    // Append indices
+    main_mesh.vertex_indices.insert(main_mesh.vertex_indices.end(), partial_mesh.vertex_indices.begin(), partial_mesh.vertex_indices.end());
+    main_mesh.texture_indices.insert(main_mesh.texture_indices.end(), partial_mesh.texture_indices.begin(), partial_mesh.texture_indices.end());
+    main_mesh.normal_indices.insert(main_mesh.normal_indices.end(), partial_mesh.normal_indices.begin(), partial_mesh.normal_indices.end());
+
+    // Append faces adjusting index start offset, NOT resolving 1-based & negative indices
+    for (const Face &pf : partial_mesh.faces)
     {
-        f.v1 = v_idx;
-        f.vt1 = vt_idx;
-        f.vn1 = vn_idx;
-    }
-    else if (state == 1)
-    {
-        f.v2 = v_idx;
-        f.vt2 = vt_idx;
-        f.vn2 = vn_idx;
-    }
-    else if (state == 2)
-    {
-        f.v3 = v_idx;
-        f.vt3 = vt_idx;
-        f.vn3 = vn_idx;
+        Face f = pf;
+        if (f.v.len  > 0) f.v.start  += v_offset;
+        if (f.vt.len > 0) f.vt.start += vt_offset;
+        if (f.vn.len > 0) f.vn.start += vn_offset;
+        customPushBack(main_mesh.faces, f);
     }
 }
 
 static void resolveFace(Face &f, Mesh &mesh)
 {
-    if (f.v1 < 0)
-        f.v1 += mesh.vertices.size();
-    else
-        f.v1 -= 1;
-    if (f.v2 < 0)
-        f.v2 += mesh.vertices.size();
-    else
-        f.v2 -= 1;
-    if (f.v3 < 0)
-        f.v3 += mesh.vertices.size();
-    else
-        f.v3 -= 1;
-    if (f.vt1 < 0)
-        f.vt1 += mesh.textures.size();
-    else
-        f.vt1 -= 1;
-    if (f.vt2 < 0)
-        f.vt2 += mesh.textures.size();
-    else
-        f.vt2 -= 1;
-    if (f.vt3 < 0)
-        f.vt3 += mesh.textures.size();
-    else
-        f.vt3 -= 1;
-    if (f.vn1 < 0)
-        f.vn1 += mesh.normals.size();
-    else
-        f.vn1 -= 1;
-    if (f.vn2 < 0)
-        f.vn2 += mesh.normals.size();
-    else
-        f.vn2 -= 1;
-    if (f.vn3 < 0)
-        f.vn3 += mesh.normals.size();
-    else
-        f.vn3 -= 1;
+    // Resolve vertex indices
+    for (size_t i = 0; i < f.v.len; ++i)
+    {
+        int64_t &idx = mesh.vertex_indices[f.v.start + i];
+        if (idx < 0)
+            idx += mesh.vertices.size();
+        else
+            idx -= 1;
+    }
+
+    // Resolve texture indices
+    for (size_t i = 0; i < f.vt.len; ++i)
+    {
+        int64_t &idx = mesh.texture_indices[f.vt.start + i];
+        if (idx < 0)
+            idx += mesh.textures.size();
+        else
+            idx -= 1;
+    }
+
+    // Resolve normal indices
+    for (size_t i = 0; i < f.vn.len; ++i)
+    {
+        int64_t &idx = mesh.normal_indices[f.vn.start + i];
+        if (idx < 0)
+            idx += mesh.normals.size();
+        else
+            idx -= 1;
+    }
 }

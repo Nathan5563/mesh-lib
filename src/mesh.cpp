@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -17,6 +16,13 @@
 void Mesh::clear()
 {
     this->vertices.clear();
+    this->textures.clear();
+    this->normals.clear();
+
+    this->vertex_indices.clear();
+    this->texture_indices.clear();
+    this->normal_indices.clear();
+    
     this->faces.clear();
 }
 
@@ -54,6 +60,7 @@ void Mesh::fromObj(const std::string &path)
         close(fd);
         return;
     }
+
     close(fd);
 
     this->clear();

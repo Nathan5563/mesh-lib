@@ -1,43 +1,49 @@
 #ifndef MESH_HPP
 #define MESH_HPP
 
+#include <cstdint>
 #include <vector>
 #include <string>
 
 struct Vertex
 {
-    float x, y, z;
+    float x, y, z; // x, y, z coordinates
 };
 
 struct Texture
 {
-    float u, v;
+    float u, v; // u, v coordinates
 };
 
 struct Normal
 {
-    float x, y, z;
+    float x, y, z; // x, y, z coordinates
 };
 
-// WARNING: All faces are currently expected to be triangles.
+struct Indices
+{
+    size_t start; // first index in associated index vector
+    size_t len; // number of indices in associated index vector
+};
+
 struct Face
 {
-    // Indices into mesh.vertices
-    int64_t v1, v2, v3;
-
-    // Indices into mesh.textures
-    int64_t vt1, vt2, vt3;
-
-    // Indices into mesh.normals
-    int64_t vn1, vn2, vn3;
+    Indices v; // vertex indices
+    Indices vt; // texture indices
+    Indices vn; // normal indices
 };
 
 struct Mesh
 {
-    std::vector<Vertex> vertices;
-    std::vector<Face> faces;
-    std::vector<Texture> textures;
-    std::vector<Normal> normals;
+    std::vector<Vertex> vertices; // vertices
+    std::vector<Texture> textures; // texture coordinates
+    std::vector<Normal> normals; // normals
+
+    std::vector<int64_t> vertex_indices; // vertex indices as referenced by faces
+    std::vector<int64_t> texture_indices; // texture indices as referenced by faces
+    std::vector<int64_t> normal_indices; // normal indices as referenced by faces
+    
+    std::vector<Face> faces; // faces
 
     // Clear the contents of the calling Mesh object
     void clear();

@@ -45,8 +45,10 @@ The mesh is represented as a struct containing the following:
   - `Texture` is a struct composed of two `float`s to represent u (horizontal) and v (vertical) axes.
 - `std::vector<Normal> normals`
   - `Normal` is a struct composed of three `float`s to represent x, y, and z coordinates.
+- `std::vector<int64_t> vertex_indices`, `std::vector<int64_t> texture_indices`, `std::vector<int64_t> normal_indices`
+  - These vectors store the actual index values referenced by faces.
 - `std::vector<Face> faces`
-  - `Face` is a struct composed of nine `size_t`s to index into the above vectors. This means it is currently limited to parsing triangles and will ignore additional indices.
+  - `Face` is a struct composed of three `Indices` structures (for vertices, textures, and normals). Each `Indices` struct contains a `start` position and `len` count, allowing faces to reference arbitrary n-gons.
 
 Both `vertices` and `faces` are 0-indexed, so the obj input and output correctly handles 1-based indexing in the obj file by adding or subtracting 1 when appropriate. All indices in this representation are positive, so negative indices in obj input are also resolved.
 
@@ -68,45 +70,50 @@ Single-threaded optimizations include:
 
 And for machines supporting parallelism, large files are broken into chunks and parsed in parallel using the same optimizations, then later merged in order once all threads have completed their jobs. Results have shown that the added overhead for managing threads is only really an issue for very small files (less than 1MB), and even then, it is on the order of milliseconds.
 
-Output of `perf record` for a 2.5GB file on the single-threaded implementation:
+Output of `perf record` for a 2.5GB file on the single-threaded implementation (~6.4s):
 
 ```bash
+# To display the perf.data header info, please use --header/--header-only>
+#
+#
 # Total Lost Samples: 0
 #
 # Samples: 16K of event 'task-clock:uppp'
-# Event count (approx.): 4210500000
+# Event count (approx.): 4157000000
 #
-# Overhead  Command  Shared Object         Symbol                              
-# ........  .......  ....................  ....................................
+# Overhead  Command          Shared Object         Symbol                >
+# ........  ...............  ....................  ......................>
 #
-    26.97%  harness  harness               [.] parseLine(Mesh&, std::basic_s...
-    23.43%  harness  harness               [.] fast_float::from_chars_result...
-    21.49%  harness  harness               [.] parseIndex(char const*, char ...
-    15.27%  harness  harness               [.] importMeshFromObj(Mesh&, char...
-    11.69%  harness  harness               [.] fast_float::from_chars_result...
-     1.14%  harness  libc.so.6             [.] __memmove_avx_unaligned_erms
-     0.01%  harness  ld-linux-x86-64.so.2  [.] do_lookup_x
+    27.03%  mesh-lib-harnes  mesh-lib-harness      [.] parseLine(Mesh&, s>
+    23.05%  mesh-lib-harnes  mesh-lib-harness      [.] fast_float::from_c>
+    15.00%  mesh-lib-harnes  mesh-lib-harness      [.] parseIndex(char co>
+    14.63%  mesh-lib-harnes  libc.so.6             [.] __memchr_avx2
+    12.56%  mesh-lib-harnes  mesh-lib-harness      [.] fast_float::from_c>
+     5.21%  mesh-lib-harnes  libc.so.6             [.] __memmove_avx_unal>
+     1.27%  mesh-lib-harnes  mesh-lib-harness      [.] importMeshFromObj(>
+     1.24%  mesh-lib-harnes  mesh-lib-harness      [.] memchr@plt
 ```
 
-Output of `perf record` for the same file on the multi-threaded implementation:
+Output of `perf record` for the same file on the multi-threaded implementation (~3.2s):
 
 ```bash
 # Total Lost Samples: 0
 #
-# Samples: 32K of event 'task-clock:uppp'
-# Event count (approx.): 8071750000
+# Samples: 35K of event 'task-clock:uppp'
+# Event count (approx.): 8757750000
 #
-# Overhead  Command  Shared Object         Symbol                              
-# ........  .......  ....................  ....................................
+# Overhead  Command          Shared Object         Symbol                >
+# ........  ...............  ....................  ......................>
 #
-    32.77%  harness  harness               [.] parseLine(Mesh&, std::basic_s...
-    23.27%  harness  harness               [.] fast_float::from_chars_result...
-    15.58%  harness  harness               [.] std::thread::_State_impl<std:...
-    13.54%  harness  harness               [.] parseIndex(char const*, char ...
-     8.57%  harness  harness               [.] fast_float::from_chars_result...
-     5.31%  harness  libc.so.6             [.] __memmove_avx_unaligned_erms
-     0.93%  harness  harness               [.] importMeshFromObjParallel(Mes...
-     0.01%  harness  libc.so.6             [.] cfree@GLIBC_2.2.5
+    32.71%  mesh-lib-harnes  mesh-lib-harness      [.] parseLine(Mesh&, s>
+    19.91%  mesh-lib-harnes  mesh-lib-harness      [.] fast_float::from_c>
+    14.87%  mesh-lib-harnes  mesh-lib-harness      [.] parseIndex(char co>
+    11.08%  mesh-lib-harnes  libc.so.6             [.] __memmove_avx_unal>
+     8.56%  mesh-lib-harnes  libc.so.6             [.] __memchr_avx2
+     7.98%  mesh-lib-harnes  mesh-lib-harness      [.] fast_float::from_c>
+     2.71%  mesh-lib-harnes  mesh-lib-harness      [.] importMeshFromObjP>
+     1.37%  mesh-lib-harnes  mesh-lib-harness      [.] std::thread::_Stat>
+     0.75%  mesh-lib-harnes  mesh-lib-harness      [.] memchr@plt
 ```
 
 This shows that the bottleneck is still the expensive string-to-float conversions in both implementations.
