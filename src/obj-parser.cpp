@@ -3,7 +3,6 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-
 #include <unistd.h>
 
 #include <fmt/core.h>
@@ -13,7 +12,10 @@
 #include "../include/obj-parser.hpp"
 #include "../include/mesh.hpp"
 
-// Newline-aligned chunks for parallelized parsing
+// ---------------------------------------------------------------------------
+//   Structs
+// ---------------------------------------------------------------------------
+
 struct Chunk
 {
     const char *start;
@@ -33,6 +35,8 @@ static void parseTexture(Mesh &mesh, std::string_view line);
 static void parseNormal(Mesh &mesh, std::string_view line);
 static void parseFace(Mesh &mesh, std::string_view line, bool parallel);
 static int parseIndex(const char *start, const char *end, Mesh &mesh, int state, bool parallel);
+static void parseMtllib(Mesh &mesh, std::string_view name);
+static void parseUsemtl(Mesh &mesh, std::string_view material);
 static void resolveFace(Face &f, Mesh &mesh);
 inline bool is_space(char c)
 {
@@ -56,6 +60,60 @@ inline std::string_view formatIndex(int idx, char* buf) {
         return std::string_view{};
     auto end = fmt::format_to(buf, "{}", idx + 1);
     return std::string_view(buf, end - buf);
+}
+
+// ---------------------------------------------------------------------------
+//   Templates
+// ---------------------------------------------------------------------------
+
+template <typename T>
+static void customPushBack(std::vector<T> &vec, const T &value, float growth_factor = 4.0f)
+{
+    if (vec.size() == vec.capacity())
+    {
+        size_t new_capacity = static_cast<size_t>(vec.capacity() * growth_factor);
+        if (new_capacity <= vec.capacity())
+        {
+            // Handle small capacities like 0 or 1:
+            new_capacity = vec.capacity() + 1;
+        }
+        vec.reserve(new_capacity);
+    }
+    vec.push_back(value);
+}
+
+template <typename Callback>
+static void forEachComponent(std::string_view line, size_t max_components, Callback cb)
+{
+    const char *ptr = line.data();
+    const char *end = ptr + line.size();
+    const char *start;
+    size_t num_components = 0;
+    while (ptr < end && num_components < max_components)
+    {
+        // Pass whitespace
+        while (ptr < end && is_space(*ptr))
+            ++ptr;
+
+        // Get a pointer and a size for the current component
+        start = ptr;
+        while (ptr < end && !is_space(*ptr))
+            ++ptr;
+
+        // If there was a component found, call the callback
+        if (ptr > start)
+            cb(start, ptr, num_components);
+
+        // Increment the number of components
+        ++num_components;
+    }
+}
+
+template <typename T>
+static inline bool toNumber(const char *start, const char *end, T &out)
+{
+    auto result = fast_float::from_chars(start, end, out);
+    return result.ec == std::errc();
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +171,8 @@ void importMeshFromObjParallel(Mesh &mesh, const char *obj_file, size_t file_siz
     {
         workers.emplace_back([&, i](){ 
             parseChunk(chunks[i].start, chunks[i].end, partial_meshes[i]); 
-        });
+        }
+    );
     }
 
     // Wait for all threads
@@ -204,60 +263,6 @@ void exportMeshToObj(const Mesh &mesh, int fd)
 }
 
 // ---------------------------------------------------------------------------
-//   Templates
-// ---------------------------------------------------------------------------
-
-template <typename T>
-static void customPushBack(std::vector<T> &vec, const T &value, float growth_factor = 4.0f)
-{
-    if (vec.size() == vec.capacity())
-    {
-        size_t new_capacity = static_cast<size_t>(vec.capacity() * growth_factor);
-        if (new_capacity <= vec.capacity())
-        {
-            // Handle small capacities like 0 or 1:
-            new_capacity = vec.capacity() + 1;
-        }
-        vec.reserve(new_capacity);
-    }
-    vec.push_back(value);
-}
-
-template <typename Callback>
-static void forEachComponent(std::string_view line, size_t max_components, Callback cb)
-{
-    const char *ptr = line.data();
-    const char *end = ptr + line.size();
-    const char *start;
-    size_t num_components = 0;
-    while (ptr < end && num_components < max_components)
-    {
-        // Pass whitespace
-        while (ptr < end && is_space(*ptr))
-            ++ptr;
-
-        // Get a pointer and a size for the current component
-        start = ptr;
-        while (ptr < end && !is_space(*ptr))
-            ++ptr;
-
-        // If there was a component found, call the callback
-        if (ptr > start)
-            cb(start, ptr, num_components);
-
-        // Increment the number of components
-        ++num_components;
-    }
-}
-
-template <typename T>
-static inline bool toNumber(const char *start, const char *end, T &out)
-{
-    auto result = fast_float::from_chars(start, end, out);
-    return result.ec == std::errc();
-}
-
-// ---------------------------------------------------------------------------
 //   Parsers
 // ---------------------------------------------------------------------------
 
@@ -280,8 +285,7 @@ static void parseChunk(const char *start, const char *end, Mesh &out)
 
         // Skip leading whitespace
         size_t i = 0;
-        for (; i < line.size() && is_space(line[i]); ++i)
-            ;
+        for (; i < line.size() && is_space(line[i]); ++i);
 
         // Skip comments and empty lines
         if (i >= line.size() || line[i] == '#')
@@ -293,7 +297,7 @@ static void parseChunk(const char *start, const char *end, Mesh &out)
 
 static void parseLine(Mesh &mesh, std::string_view line, bool parallel)
 {
-    if (line.size() < 5)
+    if (line.size() < 2)
     {
         return;
     }
@@ -316,6 +320,34 @@ static void parseLine(Mesh &mesh, std::string_view line, bool parallel)
     else if (line[0] == 'f' && is_space(line[1]))
     {
         parseFace(mesh, line.substr(2), parallel);
+    }
+    else if (
+        line[0] == 'm' &&
+        line[1] == 't' &&
+        line[2] == 'l' &&
+        line[3] == 'l' &&
+        line[4] == 'i' &&
+        line[5] == 'b' &&
+        is_space(line[6])
+    ){
+        forEachComponent(
+            line.substr(7),
+            std::numeric_limits<size_t>::max(),
+            [&](const char *start, const char *end, size_t){
+                parseMtllib(mesh, std::string_view(start, end - start));
+            }
+        );
+    }
+    else if (
+        line[0] == 'u' &&
+        line[1] == 's' &&
+        line[2] == 'e' &&
+        line[3] == 'm' &&
+        line[4] == 't' &&
+        line[5] == 'l' &&
+        is_space(line[6])
+    ){
+        parseUsemtl(mesh, line.substr(7));
     }
 }
 
@@ -488,6 +520,22 @@ static int parseIndex(const char *start, const char *end, Mesh &mesh, int state,
     }
     // Represent invalid or empty indices with INT_MIN
     return INT_MIN;
+}
+
+static void parseMtllib(Mesh &mesh, std::string_view name)
+{
+    // mtllib mtl_file
+    // This function parses mtl_file and stores the data somewhere ->
+    //   struct Material, Mesh has std::vector<Material>
+    // The mtl parser should also be parallelized for large file sizes
+}
+
+static void parseUsemtl(Mesh &mesh, std::string_view material)
+{
+    // usemtl mtl_name
+    // This function indicates that all following faces should use mtl_name
+    // This requires modification to the face struct to store a material
+    // This requires modification to the parallelized logic for face materials
 }
 
 // ---------------------------------------------------------------------------
