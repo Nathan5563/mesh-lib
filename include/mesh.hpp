@@ -5,19 +5,14 @@
 #include <vector>
 #include <string>
 
-struct Vertex
+struct Vec2
 {
-    float x, y, z; // x, y, z coordinates
+    float u, v;
 };
 
-struct Texture
+struct Vec3
 {
-    float u, v; // u, v coordinates
-};
-
-struct Normal
-{
-    float x, y, z; // x, y, z coordinates
+    float x, y, z;
 };
 
 struct Indices
@@ -31,18 +26,39 @@ struct Face
     Indices v; // vertex indices
     Indices vt; // texture indices
     Indices vn; // normal indices
+    size_t mtl; // material index
+};
+
+struct MtlVariant
+{
+    enum class Type { Rgb, Spectral, Xyz } type;
+    union {
+        Vec3 color;
+        struct { std::string file; float multiplier; } spectral;
+    };
+    MtlVariant() : type(Type::Rgb), color{} {}
 };
 
 struct Material
 {
-
+    std::string name;
+    MtlVariant ka;
+    MtlVariant kd;
+    MtlVariant ks;
+    MtlVariant tf;
+    float d;
+    bool d_halo;
+    uint8_t illum;
+    float ns;
+    float sharpness;
+    float ni;
 };
 
 struct Mesh
 {
-    std::vector<Vertex> vertices; // vertices
-    std::vector<Texture> textures; // texture coordinates
-    std::vector<Normal> normals; // normals
+    std::vector<Vec3> vertices; // vertices
+    std::vector<Vec2> textures; // texture coordinates
+    std::vector<Vec3> normals; // normals
 
     std::vector<int64_t> vertex_indices; // vertex indices as referenced by faces
     std::vector<int64_t> texture_indices; // texture indices as referenced by faces

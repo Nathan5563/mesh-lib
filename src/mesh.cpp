@@ -22,8 +22,9 @@ void Mesh::clear()
     this->vertex_indices.clear();
     this->texture_indices.clear();
     this->normal_indices.clear();
-    
     this->faces.clear();
+
+    this->materials.clear();
 }
 
 void Mesh::fromObj(const std::string &path)
@@ -67,12 +68,12 @@ void Mesh::fromObj(const std::string &path)
 
     if (file_size < MIN_SIZE_FOR_PARALLEL)
     {
-        // std::cout << "File size less than 100M, using sequential parser..." << std::endl;
+        std::cout << "File size less than 100M, using sequential parser..." << std::endl;
         importMeshFromObj(*this, obj_file, file_size);
     }
     else
     {
-        // std::cout << "File size greater than 100M, using parallel parser..." << std::endl;
+        std::cout << "File size greater than 100M, using parallel parser..." << std::endl;
         importMeshFromObjParallel(*this, obj_file, file_size);
     }    
 
@@ -81,7 +82,7 @@ void Mesh::fromObj(const std::string &path)
 
 void Mesh::toObj(const std::string &path) const
 {
-    int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0666);
+    int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1)
     {
         perror("open");

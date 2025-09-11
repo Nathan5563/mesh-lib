@@ -353,7 +353,7 @@ static void parseLine(Mesh &mesh, std::string_view line, bool parallel)
 
 static void parseVertex(Mesh &mesh, std::string_view line)
 {
-    Vertex v = {NAN, NAN, NAN};
+    Vec3 v = {NAN, NAN, NAN};
 
     forEachComponent(
         line,
@@ -381,7 +381,7 @@ static void parseVertex(Mesh &mesh, std::string_view line)
 
 static void parseTexture(Mesh &mesh, std::string_view line)
 {
-    Texture t = {NAN, NAN};
+    Vec2 t = {NAN, NAN};
 
     forEachComponent(
         line,
@@ -407,7 +407,7 @@ static void parseTexture(Mesh &mesh, std::string_view line)
 
 static void parseNormal(Mesh &mesh, std::string_view line)
 {
-    Normal n = {NAN, NAN, NAN};
+    Vec3 n = {NAN, NAN, NAN};
 
     forEachComponent(
         line,
