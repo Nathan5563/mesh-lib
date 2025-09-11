@@ -33,11 +33,6 @@ struct Face
     Indices vn; // normal indices
 };
 
-struct Material
-{
-
-};
-
 struct Mesh
 {
     std::vector<Vertex> vertices; // vertices
@@ -48,8 +43,6 @@ struct Mesh
     std::vector<int64_t> texture_indices; // texture indices as referenced by faces
     std::vector<int64_t> normal_indices; // normal indices as referenced by faces
     std::vector<Face> faces; // faces
-
-    std::vector<Material> materials; // materials
 
     // Clear the contents of the calling Mesh object
     void clear();
