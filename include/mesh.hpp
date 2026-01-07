@@ -11,7 +11,6 @@ class Mesh
 {
 public:
     Mesh();
-    ~Mesh() = default;
 
     // Imports an OBJ file into this Mesh. Returns false on failure.
     bool importObj(const char* path);
