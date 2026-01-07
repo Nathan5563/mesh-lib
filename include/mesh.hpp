@@ -5,7 +5,7 @@
 
 #include <memory>
 
-class _meshImpl;
+class _MeshImpl;
 
 class Mesh
 {
@@ -20,11 +20,8 @@ public:
     // Returns false on failure.
     bool exportObj(const char* path) const;
 
-    // Clear all data.
-    void clear();
-
 private:
-    std::unique_ptr<_meshImpl> _impl;
+    std::unique_ptr<_MeshImpl> _impl;
 };
 
 #endif // mesh.hpp

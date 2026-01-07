@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <memory>
 
-class _spmcQueueImpl;
+class _SPMCQueueImpl;
 
 class SPMCQueue
 {
@@ -29,7 +29,7 @@ public:
     SPMCQueue& operator=(const SPMCQueue&) = delete;
 
 private:
-    std::unique_ptr<_spmcQueueImpl> _impl;
+    std::unique_ptr<_SPMCQueueImpl> _impl;
 };
 
 #endif // spmc_queue.hpp

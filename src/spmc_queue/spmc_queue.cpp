@@ -1,9 +1,9 @@
 #include "spmc_queue.hpp"
 
-class _spmcQueueImpl
+class _SPMCQueueImpl
 {
 public:
-    explicit _spmcQueueImpl(std::size_t capacity)
+    explicit _SPMCQueueImpl(std::size_t capacity)
         : capacity(capacity), closed(false) {}
 
 private:
@@ -11,5 +11,6 @@ private:
     bool closed;
 };
 
-SPMCQueue::SPMCQueue(std::size_t capacity)
-    : _impl(std::make_unique<_spmcQueueImpl>(capacity)) {}
+SPMCQueue::SPMCQueue(std::size_t capacity) : 
+    _impl(std::make_unique<_SPMCQueueImpl>(capacity)) 
+{}
