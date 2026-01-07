@@ -12,13 +12,15 @@ class Mesh
 public:
     Mesh();
 
-    // Imports an OBJ file into this Mesh. Returns false on failure.
+    // Imports an OBJ file into this Mesh.
+    // Returns false on failure.
     bool importObj(const char* path);
 
-    // Exports this Mesh as an OBJ file. Returns false on failure.
+    // Exports this Mesh as an OBJ file.
+    // Returns false on failure.
     bool exportObj(const char* path) const;
 
-    // Clear all data
+    // Clear all data.
     void clear();
 
 private:
