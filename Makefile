@@ -1,42 +1,42 @@
+# Compiler and flags
 CXX := g++
-CXXFLAGS := -O3 -std=c++17 -Wall -Wextra
+CXXFLAGS := -O3 -std=c++23 -Wall -Wextra -Iinclude
 
-SRCS := src/mesh.cpp src/obj-parser.cpp
+# Directories
+SRC_DIR := src
+TEST_DIR := tests
+OBJ_DIR := obj
+BIN_DIR := bin
 
-OBJS := $(patsubst src/%.cpp,obj/%.o,$(SRCS))
+# Source files
+SRCS := $(SRC_DIR)/mesh.cpp $(SRC_DIR)/spmc_queue/spmc_queue.cpp
+OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 
-TEST_SRC := tests/mesh-lib/*
-TEST_EXE := bin/mesh-lib-harness
+# Test files
+TEST_SRCS := $(TEST_DIR)/tiny_obj_loader/tiny_obj_loader_harness.cpp \
+             $(TEST_DIR)/rapidobj/rapidobj_harness.cpp \
+             $(TEST_DIR)/fast_obj/fast_obj_harness.cpp
+TEST_BINS := $(patsubst $(TEST_DIR)/%_harness.cpp,$(BIN_DIR)/%_harness,$(TEST_SRCS))
 
-TINYOBJLOADER_SRC := tests/tinyobjloader/*
-TINYOBJLOADER_EXE := bin/tinyobjloader-harness
-
-RAPIDOBJ_SRC := tests/rapidobj/*
-RAPIDOBJ_EXE := bin/rapidobj-harness
-
-FAST_OBJ_SRC := tests/fast_obj/*
-FAST_OBJ_EXE := bin/fast_obj-harness
-
+# Default target
 .PHONY: all clean
+all: $(BIN_DIR)/mesh_lib_harness $(TEST_BINS)
 
-all: $(TEST_EXE) $(TINYOBJLOADER_EXE) $(RAPIDOBJ_EXE) $(FAST_OBJ_EXE)
-
-obj/%.o: src/%.cpp
-	mkdir -p obj
+# Build object files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(TEST_EXE): $(OBJS) $(TEST_SRC)
-	mkdir -p bin
-	$(CXX) $(CXXFLAGS) $^ -o $@ -lfmt
-
-$(TINYOBJLOADER_EXE): $(TINYOBJLOADER_SRC)
+# Build the main test harness
+$(BIN_DIR)/mesh_lib_harness: $(OBJS) $(TEST_DIR)/fast_obj/fast_obj_harness.cpp
+	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(RAPIDOBJ_EXE): $(RAPIDOBJ_SRC)
-	$(CXX) $(CXXFLAGS) $^ -o $@ -pthread
+# Build other test harnesses
+$(BIN_DIR)/%_harness: $(TEST_DIR)/%_harness.cpp
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $< -o $@
 
-$(FAST_OBJ_EXE): $(FAST_OBJ_SRC)
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
+# Clean build files
 clean:
-	rm -rf obj/* bin/*
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
