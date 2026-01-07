@@ -52,6 +52,46 @@ typedef struct
     std::size_t queue_capacity;
 } mesh_config;
 
+void producerWork(
+    SPMCQueue& queue,
+    const void* obj,
+    std::size_t file_size,
+    const mesh_config& config
+) {
+    // while (/* more_work */)
+    // {
+    //     while (!queue.try_push(/* batch */))
+    //     {
+    //         std::this_thread::yield();
+    //     }
+    // }
+    // queue.close();
+}
+
+void consumerWork(
+    SPMCQueue& queue,
+    consumer_store& store,
+    std::size_t consumer_id
+) {
+    // for (;;)
+    // {
+    //     void* batch;
+    //     if (queue.try_pop(batch))
+    //     {
+    //         // process batch
+    //         continue;
+    //     }
+
+    //     if (queue.is_closed() && queue.is_empty())
+    //     {
+    //         break;
+    //     }
+
+    //     std::this_thread::yield();
+    // }
+}
+
+
 class _MeshImpl
 {
 public:
@@ -67,9 +107,45 @@ public:
         mConsumerStores.resize(config.num_consumers);
     }
 
-    bool importObj(void* obj)
+    bool importObj(void* obj, std::size_t file_size)
     {
-        // create one producer thread and mConfig.num_consumers consumer threads
+        const std::size_t num_consumers = mConfig.num_consumers;
+        std::vector<std::thread> consumers;
+        consumers.reserve(num_consumers);
+        for (std::size_t i = 0; i < num_consumers; ++i)
+        {
+            consumers.emplace_back(
+                [this, i]()
+                {
+                    consumerWork(
+                        mQueue,
+                        mConsumerStores[i],
+                        i
+                    );
+                }
+            );
+        }
+
+        std::thread producer;
+        producer = std::thread(
+            [this, obj, file_size]()
+            {
+                // NOTE: file_size and batching logic belong here
+                producerWork(
+                    mQueue,
+                    obj,
+                    file_size,
+                    mConfig
+                );
+            }
+        );
+
+        producer.join();
+        for (auto& t : consumers)
+        {
+            t.join();
+        }
+
         return true;
     }
 
@@ -83,7 +159,8 @@ Mesh::Mesh()
 {
     mesh_config config;
     config.batch_size = 256 * 1024;
-    config.num_consumers = std::thread::hardware_concurrency() - 4;
+    config.num_consumers = std::thread::hardware_concurrency() > 4 ? 
+        std::thread::hardware_concurrency() - 4 : 2;
     config.queue_capacity = 2 * config.num_consumers;
 
     _impl = std::make_unique<_MeshImpl>(config);
@@ -128,7 +205,7 @@ bool Mesh::importObj(const char* path)
         return false;
     }
 
-    if (!_impl->importObj(obj))
+    if (!_impl->importObj(obj, file_size))
     {
         return false;
     }
