@@ -11,6 +11,7 @@ class Mesh
 {
 public:
     Mesh();
+    ~Mesh();
 
     // Imports an OBJ file into this Mesh.
     // Returns false on failure.
