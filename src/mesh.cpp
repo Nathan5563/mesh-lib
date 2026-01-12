@@ -503,13 +503,10 @@ inline void parseObject(
 
 void consumerWork(
     SPMCQueue<batch*>& queue,
-    const void* obj,
     consumer_store& store,
     std::vector<batch_artifact>& artifacts,
     std::size_t consumer_id
 ){
-    const char* data = static_cast<const char*>(obj);
-
     batch* b{};
     for (;;)
     {
@@ -582,7 +579,6 @@ public:
                 {
                     consumerWork(
                         mQueue,
-                        obj,
                         mConsumerStores[i],
                         mBatchArtifacts,
                         i
