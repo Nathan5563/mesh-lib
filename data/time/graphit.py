@@ -10,7 +10,6 @@ import os
 import glob
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
 import numpy as np # Added for np.arange
 
@@ -94,7 +93,6 @@ def create_performance_graphs(data):
     
     # Set up plotting style
     plt.style.use('default')
-    sns.set_theme(style="whitegrid")
     
     # Color palette
     colors = {
@@ -214,7 +212,6 @@ def create_summary_line_graph(data, file_sizes):
     
     # Set up plotting style
     plt.style.use('default')
-    sns.set_theme(style="whitegrid")
     
     # Create output directory for graphs
     output_dir = Path("data/time/graphs")
