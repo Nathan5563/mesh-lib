@@ -27,7 +27,7 @@ static inline std::size_t spmc_next_pow2(std::size_t x)
 }
 
 template <class T>
-class SPMCQueue
+class alignas(CACHE_LINE_SIZE) SPMCQueue
 {
     static_assert(std::is_trivially_copyable_v<T>,
         "SPMCQueue<T> requires T to be trivially copyable");
@@ -123,7 +123,7 @@ public:
     }
 
 private:
-    struct Slot
+    struct alignas(CACHE_LINE_SIZE) Slot
     {
         std::atomic<std::size_t> sequence;
         T data;
@@ -137,7 +137,7 @@ private:
 
     std::atomic<bool> mClosed{false};
 
-    Slot* mSlots;
+    alignas(CACHE_LINE_SIZE) Slot* mSlots;
 };
 
 #endif // SPMC_QUEUE_HPP
