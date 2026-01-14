@@ -21,7 +21,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // mesh.exportObj("/home/nathan/projects/mesh-lib/test.obj");
+    // std::string filename = std::string(argv[1]).substr(std::string(argv[1]).find_last_of("/\\") + 1);
+    // mesh.exportObj(("/home/nathan/projects/mesh-lib/data/output/" + filename).c_str());
 
     return 0;
 }

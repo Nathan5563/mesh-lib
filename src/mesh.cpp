@@ -1,23 +1,49 @@
+
 #include "../include/mesh.hpp"
 
 // ==============================
 // imports
 // ==============================
 #include <algorithm>
+#include <atomic>
 #include <charconv>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <immintrin.h>
+#include <iomanip>
+#include <iostream>
 #include <limits>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
 
 #include "../include/spmc_queue.hpp"
 #include "../thirdparty/fast_float/fast_float.h"
+
+// ==============================
+// performance metrics
+// ==============================
+
+inline uint64_t rdtsc() {
+  unsigned int lo, hi;
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64_t)hi << 32) | lo;
+}
+
+struct PerfMetrics {
+  std::atomic<uint64_t> total_cycles{0};
+  std::atomic<uint64_t> bytes_processed{0};
+  std::atomic<uint64_t> lines_processed{0};
+  std::atomic<uint64_t> wait_cycles{0};
+  std::atomic<uint64_t> parse_cycles{0};
+  std::atomic<uint64_t> alloc_time_ns{0};
+};
+static PerfMetrics g_perf;
 
 // ==============================
 // constants + basic types
@@ -73,6 +99,7 @@ struct batch_artifact {
   std::size_t batch_id;
   std::size_t consumer_id;
   range v, t, n, ft, fb;
+  std::size_t padA, padB, padC, padD;
 };
 
 // ==============================
@@ -307,9 +334,9 @@ inline LineType classifyLine(std::string_view line) {
   return LineType::Unknown;
 }
 
-inline void parseFaceLine(std::string_view s, std::size_t v_seen,
-                          std::size_t t_seen, std::size_t n_seen,
-                          consumer_store &store) {
+inline void parseFace(std::string_view s, std::size_t v_seen,
+                      std::size_t t_seen, std::size_t n_seen,
+                      consumer_store &store) {
   std::size_t pos = 0;
   std::size_t count = 0;
 
@@ -413,13 +440,19 @@ void consumerWork(SPMCQueue<batch *> &queue, consumer_store &store,
                   std::size_t consumer_id) {
   batch *b{};
   for (;;) {
+    uint64_t _t0 = rdtsc();
     if (!queue.try_pop(b)) {
       _mm_pause();
       continue;
     }
+    g_perf.wait_cycles += (rdtsc() - _t0);
+
     if (b == batch_sentinel) {
       break;
     }
+
+    uint64_t parse_start = rdtsc();
+    uint64_t _num_lines = 0;
 
     const std::size_t v0 = store.vertices.size();
     const std::size_t t0 = store.textures.size();
@@ -492,13 +525,19 @@ void consumerWork(SPMCQueue<batch *> &queue, consumer_store &store,
           std::size_t r = line.find_first_not_of(" \t");
           if (r != std::string_view::npos) {
             line.remove_prefix(r);
-            parseFaceLine(line, v_seen, t_seen, n_seen, store);
+            parseFace(line, v_seen, t_seen, n_seen, store);
           }
         }
       }
 
       i += len + (line_end ? 1 : 0);
+
+      _num_lines++;
     }
+
+    g_perf.parse_cycles += (rdtsc() - parse_start);
+    g_perf.bytes_processed += b->size;
+    g_perf.lines_processed += _num_lines;
 
     batch_artifact a{};
     a.batch_id = b->batch_id;
@@ -534,11 +573,17 @@ public:
     consumers.reserve(num_consumers);
 
     for (std::size_t i = 0; i < num_consumers; ++i) {
-      mConsumerStores[i].vertices.reserve(file_size / 48);
-      mConsumerStores[i].textures.reserve(file_size / 80);
-      mConsumerStores[i].normals.reserve(file_size / 48);
-      mConsumerStores[i].face_tape.reserve(file_size / 64);
-      mConsumerStores[i].face_bounds.reserve(file_size / 48);
+      auto start_alloc = std::chrono::high_resolution_clock::now();
+      mConsumerStores[i].vertices.reserve(file_size / (num_consumers * 48));
+      mConsumerStores[i].textures.reserve(file_size / (num_consumers * 80));
+      mConsumerStores[i].normals.reserve(file_size / (num_consumers * 48));
+      mConsumerStores[i].face_tape.reserve(file_size / (num_consumers * 64));
+      mConsumerStores[i].face_bounds.reserve(file_size / (num_consumers * 48));
+      auto end_alloc = std::chrono::high_resolution_clock::now();
+      g_perf.alloc_time_ns +=
+          std::chrono::duration_cast<std::chrono::nanoseconds>(end_alloc -
+                                                               start_alloc)
+              .count();
       consumers.emplace_back([this, obj, i]() {
         consumerWork(mQueue, mConsumerStores[i], mBatchArtifacts, i);
       });
@@ -676,6 +721,38 @@ public:
     }
     return (close(fd) == 0);
   }
+
+  void printStats(double total_sec, std::size_t file_size) {
+    double gb = file_size / (1024.0 * 1024.0 * 1024.0);
+    double throughput = gb / total_sec;
+
+    std::cout << "\n--------- PERF REPORT ---------\n";
+    std::cout << "Throughput: " << std::fixed << std::setprecision(2)
+              << throughput << " GB/s\n";
+    std::cout << "Wait Ratio: "
+              << (double)g_perf.wait_cycles / g_perf.parse_cycles * 100.0
+              << "%\n";
+
+    if (g_perf.wait_cycles > g_perf.parse_cycles * 0.2) {
+      std::cout
+          << "[HINT] High Wait Ratio: Producer is too slow or batch_size is "
+             "too small. "
+          << "The linear scan in prefixCounts is likely the bottleneck.\n";
+    }
+
+    double cycles_per_byte =
+        (double)g_perf.parse_cycles / g_perf.bytes_processed;
+    std::cout << "Cycles/Byte: " << cycles_per_byte << "\n";
+
+    if (cycles_per_byte > 10.0) {
+      std::cout << "[HINT] High Cycles/Byte: Check for branch mispredictions "
+                   "in classifyLine "
+                << "or SIMD-ify parseFloat.\n";
+    }
+
+    std::cout << "Alloc/Reserve: " << g_perf.alloc_time_ns / 1e6 << " ms\n";
+    std::cout << "-------------------------------\n";
+  }
 };
 
 Mesh::Mesh() {
@@ -732,10 +809,16 @@ bool Mesh::importObj(const char *path) {
   _impl->mBatchArtifacts.resize(num_batches);
   _impl->mBatches.resize(num_batches);
 
+  auto start_time = std::chrono::high_resolution_clock::now();
   if (!_impl->importObj(obj, file_size)) {
     munmap(obj, file_size);
     return false;
   }
+  auto end_time = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> diff = end_time - start_time;
+  double total_sec = diff.count();
+  _impl->printStats(total_sec, file_size);
+
   return (munmap(obj, file_size) == 0);
 }
 
